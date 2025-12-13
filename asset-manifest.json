@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/musicnotation/static/js/main.b27641e4.js",
+    "main.js": "/musicnotation/static/js/main.c1fb18b0.js",
     "index.html": "/musicnotation/index.html",
-    "main.b27641e4.js.map": "/musicnotation/static/js/main.b27641e4.js.map"
+    "main.c1fb18b0.js.map": "/musicnotation/static/js/main.c1fb18b0.js.map"
   },
   "entrypoints": [
-    "static/js/main.b27641e4.js"
+    "static/js/main.c1fb18b0.js"
   ]
 }
