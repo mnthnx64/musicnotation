@@ -27,7 +27,7 @@ export default function Header() {
         ))}
       </div>
 
-      <div className="mode-tabs" style={{ marginLeft: 4 }}>
+      <div className="mode-tabs input-tabs">
         {[['file', 'Upload'], ['live', 'Live'], ['compose', 'Compose']].map(([v, l]) => (
           <button
             key={v}
@@ -52,7 +52,7 @@ export default function Header() {
             LIVE
           </div>
         )}
-        <button className="icon-btn" onClick={toggleTweaks} title="Tweaks">
+        <button className="icon-btn" onClick={toggleTweaks} title="Settings">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="8" cy="4" r="1.5"/><line x1="8" y1="1" x2="8" y2="2.5"/><line x1="8" y1="5.5" x2="8" y2="15"/>
             <circle cx="4" cy="10" r="1.5"/><line x1="4" y1="1" x2="4" y2="8.5"/><line x1="4" y1="11.5" x2="4" y2="15"/>

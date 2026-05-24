@@ -16,11 +16,12 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
   const confidence = useStore((s) => s.confidence);
 
   const [exportOpen, setExportOpen] = useState(false);
+  const [showMoreFormats, setShowMoreFormats] = useState(false);
   const exportRef = useRef(null);
 
   useEffect(() => {
     if (!exportOpen) return;
-    const close = (e) => { if (!exportRef.current?.contains(e.target)) setExportOpen(false); };
+    const close = (e) => { if (!exportRef.current?.contains(e.target)) { setExportOpen(false); setShowMoreFormats(false); } };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [exportOpen]);
@@ -32,6 +33,7 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
 
   const handleExportFormat = (fmt) => {
     setExportOpen(false);
+    setShowMoreFormats(false);
     onExport?.(fmt);
   };
 
@@ -111,7 +113,7 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 80, justifyContent: 'flex-end' }}>
+      <div className="control-right">
         {active && (
           <div className="live-note-badge">
             <span className="live-note-swara" style={{ color: liveSwara ? confColor : 'var(--text-dim)' }}>
@@ -131,15 +133,28 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
                 <path d="M7 1v8M4 6l3 3 3-3M2 10v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2" />
               </svg>
               Export
-              <span style={{ fontSize: 8, marginLeft: 2 }}>{'\u25BE'}</span>
             </button>
             {exportOpen && (
               <div className="export-menu">
-                <button onClick={() => handleExportFormat('txt')}>Plain Text (.txt)</button>
-                <button onClick={() => handleExportFormat('pdf')}>PDF Document (.pdf)</button>
-                <button onClick={() => handleExportFormat('png')}>Image (.png)</button>
-                <button onClick={() => handleExportFormat('midi')}>MIDI (.mid)</button>
-                <button onClick={() => handleExportFormat('musicxml')}>MusicXML (.musicxml)</button>
+                <div className="export-menu-section">
+                  <div className="export-menu-label">Recommended</div>
+                  <button onClick={() => handleExportFormat('txt')}>Save as Text</button>
+                  <button onClick={() => handleExportFormat('pdf')}>Save as PDF</button>
+                </div>
+                {!showMoreFormats ? (
+                  <div className="export-menu-section">
+                    <button onClick={() => setShowMoreFormats(true)} style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                      More formats...
+                    </button>
+                  </div>
+                ) : (
+                  <div className="export-menu-section">
+                    <div className="export-menu-label">Other formats</div>
+                    <button onClick={() => handleExportFormat('png')}>Image (.png)</button>
+                    <button onClick={() => handleExportFormat('midi')}>MIDI (.mid)</button>
+                    <button onClick={() => handleExportFormat('musicxml')}>MusicXML (.musicxml)</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

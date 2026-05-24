@@ -24,6 +24,7 @@ import TweaksPanel from './components/TweaksPanel';
 import ComposerGrid from './components/ComposerGrid';
 import SwaraPalette from './components/SwaraPalette';
 import NoteEditor from './components/NoteEditor';
+import MobileNav from './components/MobileNav';
 
 export default function App() {
   const theme = useStore((s) => s.theme);
@@ -60,6 +61,10 @@ export default function App() {
   const composerPlaying = useStore((s) => s.composerPlaying);
   const composerTitle = useStore((s) => s.composerTitle);
   const bpm = useStore((s) => s.bpm);
+  const onboardingSeen = useStore((s) => s.onboardingSeen);
+  const dismissOnboarding = useStore((s) => s.dismissOnboarding);
+  const toast = useStore((s) => s.toast);
+  const showToast = useStore((s) => s.showToast);
 
   const fileInputRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -69,7 +74,6 @@ export default function App() {
   const rafRef = useRef(null);
   const lastFileRef = useRef(null);
 
-  // Live recording refs
   const liveStreamRef = useRef(null);
   const liveAnalyserRef = useRef(null);
   const liveBufferRef = useRef(null);
@@ -112,20 +116,21 @@ export default function App() {
         fileName: file.name,
       });
 
-      // Auto-set shruti from detected tonic (first time only)
       if (!useStore.getState().shrutiAutoDetected && results.tonic) {
         useStore.setState({
           shruti: results.tonic.note,
           shrutiAutoDetected: true,
         });
       }
+
+      showToast(`Done! ${results.swaras.length} swaras detected`, 'success');
     } catch (err) {
       console.error('Processing failed:', err);
       setProcessing(false, 0, '');
+      showToast('Processing failed. Please try a different audio file.', 'error');
     }
-  }, [setProcessing, setResults]);
+  }, [setProcessing, setResults, showToast]);
 
-  // Re-process when shruti or raga changes (if we have a loaded file)
   const reprocessFile = useCallback(async () => {
     const file = lastFileRef.current;
     if (!file || useStore.getState().isProcessing) return;
@@ -427,6 +432,7 @@ export default function App() {
           console.error('Mic access failed:', err);
           setMicPermission('denied');
           stopRecording();
+          showToast('Microphone access needed. Please allow it in your browser settings.', 'error');
         }
       })();
 
@@ -455,6 +461,11 @@ export default function App() {
       liveStreamRef.current.getTracks().forEach(t => t.stop());
       liveStreamRef.current = null;
       setLiveSwara(null);
+
+      const swaraCount = useStore.getState().swaras.length;
+      if (swaraCount > 0) {
+        showToast(`Recording saved! ${swaraCount} swaras detected.`, 'success');
+      }
     }
   }, [isRecording, isPaused, inputMode]);
 
@@ -495,6 +506,17 @@ export default function App() {
       style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)' }}
     >
       <Header />
+
+      {/* Onboarding banner for first-time users */}
+      {!onboardingSeen && (
+        <div className="onboarding-banner">
+          <span className="onboarding-text">
+            Welcome to EzSwara! Upload audio, sing live, or compose manually.
+          </span>
+          <button className="onboarding-dismiss" onClick={dismissOnboarding}>&times;</button>
+        </div>
+      )}
+
       <ConfigStrip />
       {showCalibrate && <ShrutiCalibration />}
       <MetronomeStrip />
@@ -539,7 +561,7 @@ export default function App() {
               <div className="info-divider" />
               <div className="info-chip">
                 <span className="label">File</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fileName}
                 </span>
               </div>
@@ -586,18 +608,31 @@ export default function App() {
           <DropZone onFile={handleFile} />
         ) : (
           <div className="empty-state">
-            <div style={{
-              width: 52, height: 52, borderRadius: '50%',
-              border: '1.5px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5">
+            <div className="empty-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                 <line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" />
               </svg>
             </div>
-            <span className="empty-hint">Tap Record to begin live transcription...</span>
+            <span className="empty-title">Ready to transcribe</span>
+            <span className="empty-hint">
+              Tap the red record button below to start singing. We'll convert your voice to musical notation in real-time.
+            </span>
+            <div className="empty-steps">
+              <div className="empty-step">
+                <span className="empty-step-num">1</span>
+                <span>Set your key (Sa) in the config above</span>
+              </div>
+              <div className="empty-step">
+                <span className="empty-step-num">2</span>
+                <span>Tap the red button to start recording</span>
+              </div>
+              <div className="empty-step">
+                <span className="empty-step-num">3</span>
+                <span>Sing and see notation appear live</span>
+              </div>
+            </div>
           </div>
         )}
         {inputMode !== 'compose' && hasResults && <NoteEditor />}
@@ -677,7 +712,16 @@ export default function App() {
           onExport={handleExport}
         />
       )}
+
       <TweaksPanel />
+      <MobileNav />
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
 
       {/* Hidden file input */}
       <input

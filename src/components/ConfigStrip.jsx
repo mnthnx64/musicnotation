@@ -15,6 +15,8 @@ export default function ConfigStrip() {
   const toggleCalibrate = useStore((s) => s.toggleCalibrate);
   const swaras = useStore((s) => s.swaras);
   const clearResults = useStore((s) => s.clearResults);
+  const mobileConfigExpanded = useStore((s) => s.mobileConfigExpanded);
+  const toggleMobileConfig = useStore((s) => s.toggleMobileConfig);
 
   const [customInput, setCustomInput] = useState(customTalaGroups.join('+'));
 
@@ -24,9 +26,9 @@ export default function ConfigStrip() {
     if (parts.length > 0) setCustomTalaGroups(parts);
   };
 
-  return (
-    <div className="config-strip">
-      <span className="config-label">Shruti</span>
+  const configContent = (
+    <>
+      <span className="config-label">Key (Sa)<span className="config-label-sub">tonic</span></span>
       <button
         className={`config-chip${showCalibrate ? ' active' : ''}`}
         onClick={toggleCalibrate}
@@ -43,7 +45,7 @@ export default function ConfigStrip() {
 
       <div className="config-divider" />
 
-      <span className="config-label">Raga</span>
+      <span className="config-label">Scale<span className="config-label-sub">raga</span></span>
       <div className="config-select-wrap">
         <select
           className="config-select"
@@ -57,7 +59,7 @@ export default function ConfigStrip() {
 
       <div className="config-divider" />
 
-      <span className="config-label">Tala</span>
+      <span className="config-label">Rhythm<span className="config-label-sub">tala</span></span>
       <div className="config-select-wrap">
         <select
           className="config-select"
@@ -70,11 +72,15 @@ export default function ConfigStrip() {
       </div>
       {tala === 'Custom' && (
         <input
-          className="config-custom-tala-input"
-          placeholder="3+4+2"
+          placeholder="e.g. 3+4+2"
           value={customInput}
           onChange={(e) => handleCustomInput(e.target.value)}
-          style={{ width: 72, marginLeft: 4, fontSize: 12, padding: '2px 6px' }}
+          style={{
+            width: 80, marginLeft: 4, fontSize: 12, padding: '6px 8px',
+            borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--bg-surface)', color: 'var(--text)',
+            fontFamily: 'JetBrains Mono, monospace', minHeight: 36,
+          }}
         />
       )}
 
@@ -87,6 +93,33 @@ export default function ConfigStrip() {
           Clear
         </button>
       )}
+    </>
+  );
+
+  return (
+    <div className={`config-strip${mobileConfigExpanded ? ' expanded' : ''}`}>
+      {/* Mobile: show summary that expands */}
+      <div className="config-summary" onClick={toggleMobileConfig}>
+        <div className="config-summary-chip">
+          <span className="label">Key</span> {shruti}
+        </div>
+        <div className="config-summary-chip">
+          <span className="label">Scale</span> {raga === 'Custom' ? 'Custom' : raga}
+        </div>
+        <div className="config-summary-chip">
+          <span className="label">Rhythm</span> {tala === 'Alapana (Unmetered)' ? 'Free' : tala.split(' ')[0]}
+        </div>
+        <div className={`config-expand-icon${mobileConfigExpanded ? ' expanded' : ''}`}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 4.5l3 3 3-3" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Full config (always visible on desktop, toggle on mobile) */}
+      <div className="config-full" style={{ display: 'contents' }}>
+        {configContent}
+      </div>
     </div>
   );
 }

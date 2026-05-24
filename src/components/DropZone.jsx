@@ -1,15 +1,19 @@
 import { useState, useRef, useCallback } from 'react';
+import useStore from '../store';
 
 export default function DropZone({ onFile }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef(null);
   const dragCounter = useRef(0);
+  const showToast = useStore((s) => s.showToast);
 
   const handleFile = useCallback((file) => {
     if (file && file.type.startsWith('audio/')) {
       onFile(file);
+    } else if (file) {
+      showToast('Unsupported file type. Please use an audio file (MP3, WAV, M4A, OGG, FLAC).', 'error');
     }
-  }, [onFile]);
+  }, [onFile, showToast]);
 
   const handleDragEnter = (e) => {
     e.preventDefault();
@@ -57,12 +61,12 @@ export default function DropZone({ onFile }) {
       >
         <div className="dropzone-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5">
-            <path d="M12 3v12M8 11l4 4 4-4" />
-            <path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
+            <path d="M12 16V4M8 8l4-4 4 4" />
+            <path d="M3 14v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
           </svg>
         </div>
-        <span className="dropzone-title">Drop an audio file here</span>
-        <span className="dropzone-hint">or click to browse...</span>
+        <span className="dropzone-title">Tap to upload an audio file</span>
+        <span className="dropzone-hint">or drag and drop here</span>
         <span className="dropzone-formats">wav, mp3, m4a, ogg, flac</span>
       </div>
       <input

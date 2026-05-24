@@ -20,7 +20,6 @@ export default function SwaraPalette() {
   const insertSwara = (swara) => {
     if (composerSpeed > 1) setCellSpeed(row, col, composerSpeed);
     setCellSwara(row, col, sub, swara, 0);
-    const cell = avartanams[row]?.[col];
     const maxSub = composerSpeed - 1;
     if (sub < maxSub) {
       setSelectedCell({ row, col, sub: sub + 1 });
@@ -47,28 +46,24 @@ export default function SwaraPalette() {
         </button>
       </div>
 
-      <div className="palette-divider" />
-
       <div className="palette-controls">
-        <span className="palette-label">Octave</span>
+        <span className="palette-label">Oct</span>
         <button
           className={`palette-btn small${currentOctave === 1 ? ' active' : ''}`}
           onClick={() => setCellOctave(row, col, sub, currentOctave === 1 ? 0 : 1)}
           title="Upper octave"
         >
-          {'\u0307'}
+          {'\u2191'}
         </button>
         <button
           className={`palette-btn small${currentOctave === -1 ? ' active' : ''}`}
           onClick={() => setCellOctave(row, col, sub, currentOctave === -1 ? 0 : -1)}
           title="Lower octave"
         >
-          {'\u0323'}
+          {'\u2193'}
         </button>
 
-        <div className="palette-divider" />
-
-        <span className="palette-label">Speed</span>
+        <span className="palette-label" style={{ marginLeft: 8 }}>Speed</span>
         {[1, 2, 4].map((s) => (
           <button
             key={s}
@@ -82,9 +77,12 @@ export default function SwaraPalette() {
           </button>
         ))}
 
-        <div className="palette-divider" />
-
-        <button className="palette-btn small" onClick={() => clearCell(row, col)} title="Clear cell">
+        <button
+          className="palette-btn small"
+          onClick={() => clearCell(row, col)}
+          title="Clear cell"
+          style={{ marginLeft: 8 }}
+        >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
             <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />
           </svg>

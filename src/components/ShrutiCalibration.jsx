@@ -146,6 +146,7 @@ export default function ShrutiCalibration() {
 
   return (
     <div className="shruti-calibration">
+      <div className="cal-hint">Pick your starting note, or sing &lsquo;Sa&rsquo; to detect it automatically</div>
       <span className="cal-label">Sa =</span>
       <div className="semitone-picker">
         {SHRUTI_NOTES.map((note) => (

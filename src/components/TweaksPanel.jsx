@@ -3,6 +3,7 @@ import { ENGINES } from '../audio/pitchEngines';
 
 export default function TweaksPanel() {
   const tweaksOpen = useStore((s) => s.tweaksOpen);
+  const toggleTweaks = useStore((s) => s.toggleTweaks);
   const mode = useStore((s) => s.mode);
   const setMode = useStore((s) => s.setMode);
   const theme = useStore((s) => s.theme);
@@ -12,6 +13,8 @@ export default function TweaksPanel() {
   const bpm = useStore((s) => s.bpm);
   const setBpm = useStore((s) => s.setBpm);
   const tala = useStore((s) => s.tala);
+  const showAdvancedTweaks = useStore((s) => s.showAdvancedTweaks);
+  const toggleAdvancedTweaks = useStore((s) => s.toggleAdvancedTweaks);
   const minStableFrames = useStore((s) => s.minStableFrames);
   const setMinStableFrames = useStore((s) => s.setMinStableFrames);
   const confidenceThreshold = useStore((s) => s.confidenceThreshold);
@@ -28,14 +31,15 @@ export default function TweaksPanel() {
   if (!tweaksOpen) return null;
 
   return (
-    <div className="tweaks-overlay">
+    <div className="tweaks-overlay" onClick={(e) => { if (e.target === e.currentTarget) toggleTweaks(); }}>
       <div className="tweaks-panel">
-        <div className="tweaks-title">Tweaks</div>
+        <div className="tweaks-handle" />
+        <div className="tweaks-title">Settings</div>
 
         <div className="tweak-group">
           <div className="tweak-group-label">Notation Display</div>
           <div className="tweak-options">
-            {[['dual', 'Dual Pane'], ['carnatic', 'Carnatic'], ['western', 'Western']].map(([v, l]) => (
+            {[['dual', 'Both'], ['carnatic', 'Carnatic'], ['western', 'Western']].map(([v, l]) => (
               <button
                 key={v}
                 className={`tweak-opt${mode === v ? ' active' : ''}`}
@@ -74,72 +78,86 @@ export default function TweaksPanel() {
           </div>
         )}
 
-        <div className="tweak-group">
-          <div className="tweak-group-label">Detection (File)</div>
-          <div className="tweak-slider-row">
-            <label>Min Stability</label>
-            <input type="range" min={1} max={10} step={1} value={minStableFrames}
-              onChange={(e) => setMinStableFrames(+e.target.value)} />
-            <span>{minStableFrames}f</span>
-          </div>
-          <div className="tweak-slider-row">
-            <label>Confidence</label>
-            <input type="range" min={0.1} max={0.8} step={0.05} value={confidenceThreshold}
-              onChange={(e) => setConfidenceThreshold(+e.target.value)} />
-            <span>{Math.round(confidenceThreshold * 100)}%</span>
-          </div>
-        </div>
-
-        <div className="tweak-group">
-          <div className="tweak-group-label">Detection Engine</div>
-          <div className="tweak-options">
-            {ENGINES.map(e => (
-              <button
-                key={e.id}
-                className={`tweak-opt${pitchEngine === e.id ? ' active' : ''}`}
-                onClick={() => setPitchEngine(e.id)}
-                title={e.description}
-              >
-                {e.name}
-              </button>
-            ))}
-          </div>
-          <div className="tweak-options" style={{ marginTop: 6 }}>
-            {[['auto', 'Auto'], ['worklet', 'Worklet'], ['main-thread', 'Main Thread']].map(([v, l]) => (
-              <button
-                key={v}
-                className={`tweak-opt${pitchExecMode === v ? ' active' : ''}`}
-                onClick={() => setPitchExecMode(v)}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="tweak-group">
-          <div className="tweak-group-label">Detection (Live)</div>
-          <div className="tweak-slider-row">
-            <label>Min Note</label>
-            <input type="range" min={30} max={300} step={10} value={minNoteMs}
-              onChange={(e) => setMinNoteMs(+e.target.value)} />
-            <span>{minNoteMs}ms</span>
-          </div>
-          <div className="tweak-slider-row">
-            <label>Silence Gap</label>
-            <input type="range" min={50} max={500} step={10} value={silenceMs}
-              onChange={(e) => setSilenceMs(+e.target.value)} />
-            <span>{silenceMs}ms</span>
-          </div>
-        </div>
-
         <div className="tweak-group" style={{ marginBottom: 0 }}>
           <div className="tweak-group-label">Quick Actions</div>
           <div className="tweak-options">
-            <button className="tweak-opt" onClick={clearResults}>Clear All</button>
-            <button className="tweak-opt" onClick={toggleCalibrate}>Shruti Setup</button>
+            <button className="tweak-opt" onClick={() => { clearResults(); toggleTweaks(); }}>Clear All</button>
+            <button className="tweak-opt" onClick={() => { toggleCalibrate(); toggleTweaks(); }}>Set Key (Sa)</button>
           </div>
         </div>
+
+        <button
+          className={`tweak-advanced-toggle${showAdvancedTweaks ? ' expanded' : ''}`}
+          onClick={toggleAdvancedTweaks}
+        >
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 4.5l3 3 3-3" />
+          </svg>
+          {showAdvancedTweaks ? 'Hide advanced settings' : 'Show advanced settings'}
+        </button>
+
+        {showAdvancedTweaks && (
+          <>
+            <div className="tweak-group">
+              <div className="tweak-group-label">Detection (File Upload)</div>
+              <div className="tweak-slider-row">
+                <label>Min Stability</label>
+                <input type="range" min={1} max={10} step={1} value={minStableFrames}
+                  onChange={(e) => setMinStableFrames(+e.target.value)} />
+                <span>{minStableFrames}f</span>
+              </div>
+              <div className="tweak-slider-row">
+                <label>Confidence</label>
+                <input type="range" min={0.1} max={0.8} step={0.05} value={confidenceThreshold}
+                  onChange={(e) => setConfidenceThreshold(+e.target.value)} />
+                <span>{Math.round(confidenceThreshold * 100)}%</span>
+              </div>
+            </div>
+
+            <div className="tweak-group">
+              <div className="tweak-group-label">Pitch Engine</div>
+              <div className="tweak-options">
+                {ENGINES.map(e => (
+                  <button
+                    key={e.id}
+                    className={`tweak-opt${pitchEngine === e.id ? ' active' : ''}`}
+                    onClick={() => setPitchEngine(e.id)}
+                    title={e.description}
+                  >
+                    {e.name}
+                  </button>
+                ))}
+              </div>
+              <div className="tweak-options" style={{ marginTop: 6 }}>
+                {[['auto', 'Auto'], ['worklet', 'Worklet'], ['main-thread', 'Main Thread']].map(([v, l]) => (
+                  <button
+                    key={v}
+                    className={`tweak-opt${pitchExecMode === v ? ' active' : ''}`}
+                    onClick={() => setPitchExecMode(v)}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="tweak-group">
+              <div className="tweak-group-label">Detection (Live)</div>
+              <div className="tweak-slider-row">
+                <label>Min Note</label>
+                <input type="range" min={30} max={300} step={10} value={minNoteMs}
+                  onChange={(e) => setMinNoteMs(+e.target.value)} />
+                <span>{minNoteMs}ms</span>
+              </div>
+              <div className="tweak-slider-row">
+                <label>Silence Gap</label>
+                <input type="range" min={50} max={500} step={10} value={silenceMs}
+                  onChange={(e) => setSilenceMs(+e.target.value)} />
+                <span>{silenceMs}ms</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

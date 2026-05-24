@@ -158,6 +158,24 @@ const useStore = create((set, get) => ({
   // Tweaks
   tweaksOpen: false,
   toggleTweaks: () => set((s) => ({ tweaksOpen: !s.tweaksOpen })),
+  showAdvancedTweaks: false,
+  toggleAdvancedTweaks: () => set((s) => ({ showAdvancedTweaks: !s.showAdvancedTweaks })),
+
+  // Mobile UI
+  mobileConfigExpanded: false,
+  toggleMobileConfig: () => set((s) => ({ mobileConfigExpanded: !s.mobileConfigExpanded })),
+  onboardingSeen: typeof localStorage !== 'undefined' && localStorage.getItem('ezswara-onboarding-seen') === '1',
+  dismissOnboarding: () => {
+    localStorage.setItem('ezswara-onboarding-seen', '1');
+    set({ onboardingSeen: true });
+  },
+
+  // Toast notifications
+  toast: null,
+  showToast: (message, type = 'info') => {
+    set({ toast: { message, type } });
+    setTimeout(() => set({ toast: null }), 4000);
+  },
   minStableFrames: 3,
   setMinStableFrames: (v) => set({ minStableFrames: v }),
   confidenceThreshold: 0.3,
