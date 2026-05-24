@@ -15,6 +15,7 @@ export default function TweaksPanel() {
   const tala = useStore((s) => s.tala);
   const showAdvancedTweaks = useStore((s) => s.showAdvancedTweaks);
   const toggleAdvancedTweaks = useStore((s) => s.toggleAdvancedTweaks);
+  const toggleHelp = useStore((s) => s.toggleHelp);
   const minStableFrames = useStore((s) => s.minStableFrames);
   const setMinStableFrames = useStore((s) => s.setMinStableFrames);
   const confidenceThreshold = useStore((s) => s.confidenceThreshold);
@@ -34,7 +35,19 @@ export default function TweaksPanel() {
     <div className="tweaks-overlay" onClick={(e) => { if (e.target === e.currentTarget) toggleTweaks(); }}>
       <div className="tweaks-panel">
         <div className="tweaks-handle" />
-        <div className="tweaks-title">Settings</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div className="tweaks-title" style={{ marginBottom: 0 }}>Settings</div>
+          <button
+            onClick={toggleTweaks}
+            style={{
+              width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--border-dim)',
+              background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}
+          >
+            &times;
+          </button>
+        </div>
 
         <div className="tweak-group">
           <div className="tweak-group-label">Notation Display</div>
@@ -66,17 +79,15 @@ export default function TweaksPanel() {
           </div>
         </div>
 
-        {tala !== 'Alapana (Unmetered)' && (
-          <div className="tweak-group">
-            <div className="tweak-group-label">Tempo</div>
-            <div className="tweak-slider-row">
-              <label>BPM</label>
-              <input type="range" min={30} max={240} step={1} value={bpm}
-                onChange={(e) => setBpm(+e.target.value)} />
-              <span>{bpm}</span>
-            </div>
+        <div className="tweak-group">
+          <div className="tweak-group-label">Tempo</div>
+          <div className="tweak-slider-row">
+            <label>BPM</label>
+            <input type="range" min={30} max={240} step={1} value={bpm}
+              onChange={(e) => setBpm(+e.target.value)} />
+            <span>{bpm}</span>
           </div>
-        )}
+        </div>
 
         <div className="tweak-group" style={{ marginBottom: 0 }}>
           <div className="tweak-group-label">Quick Actions</div>
@@ -100,22 +111,26 @@ export default function TweaksPanel() {
           <>
             <div className="tweak-group">
               <div className="tweak-group-label">Detection (File Upload)</div>
+              <div className="tweak-hint">Controls how notes are detected when processing uploaded audio files.</div>
               <div className="tweak-slider-row">
-                <label>Min Stability</label>
+                <label title="How many consecutive frames must agree before accepting a note">Min Stability</label>
                 <input type="range" min={1} max={10} step={1} value={minStableFrames}
                   onChange={(e) => setMinStableFrames(+e.target.value)} />
                 <span>{minStableFrames}f</span>
               </div>
+              <div className="tweak-slider-hint">Higher = fewer false notes, lower = catches ornaments</div>
               <div className="tweak-slider-row">
-                <label>Confidence</label>
+                <label title="How certain the app must be about a detected pitch">Confidence</label>
                 <input type="range" min={0.1} max={0.8} step={0.05} value={confidenceThreshold}
                   onChange={(e) => setConfidenceThreshold(+e.target.value)} />
                 <span>{Math.round(confidenceThreshold * 100)}%</span>
               </div>
+              <div className="tweak-slider-hint">Higher = only clear notes, lower = more sensitive</div>
             </div>
 
             <div className="tweak-group">
               <div className="tweak-group-label">Pitch Engine</div>
+              <div className="tweak-hint">Choose the algorithm for pitch detection. YIN is best for voice.</div>
               <div className="tweak-options">
                 {ENGINES.map(e => (
                   <button
@@ -143,21 +158,36 @@ export default function TweaksPanel() {
 
             <div className="tweak-group">
               <div className="tweak-group-label">Detection (Live)</div>
+              <div className="tweak-hint">Fine-tune how live microphone input is processed.</div>
               <div className="tweak-slider-row">
-                <label>Min Note</label>
+                <label title="Shortest note accepted (ms)">Min Note</label>
                 <input type="range" min={30} max={300} step={10} value={minNoteMs}
                   onChange={(e) => setMinNoteMs(+e.target.value)} />
                 <span>{minNoteMs}ms</span>
               </div>
+              <div className="tweak-slider-hint">Increase if getting noise, decrease for fast gamakas</div>
               <div className="tweak-slider-row">
-                <label>Silence Gap</label>
+                <label title="How long silence must last to end a note">Silence Gap</label>
                 <input type="range" min={50} max={500} step={10} value={silenceMs}
                   onChange={(e) => setSilenceMs(+e.target.value)} />
                 <span>{silenceMs}ms</span>
               </div>
+              <div className="tweak-slider-hint">Shorter = staccato, longer = connects sustained notes</div>
             </div>
           </>
         )}
+
+        <button
+          className="tweak-help-btn"
+          onClick={() => { toggleHelp(); toggleTweaks(); }}
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 14, height: 14 }}>
+            <circle cx="8" cy="8" r="7" />
+            <path d="M6 6.5a2 2 0 0 1 3.5 1.5c0 1-1.5 1.5-1.5 2.5" />
+            <circle cx="8" cy="12.5" r="0.5" fill="currentColor" stroke="none" />
+          </svg>
+          Help & FAQ
+        </button>
       </div>
     </div>
   );

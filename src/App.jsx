@@ -21,6 +21,7 @@ import SwaraTimeline from './components/SwaraTimeline';
 import WaveformCanvas from './components/WaveformCanvas';
 import ControlBar from './components/ControlBar';
 import TweaksPanel from './components/TweaksPanel';
+import HelpFAQ from './components/HelpFAQ';
 import ComposerGrid from './components/ComposerGrid';
 import SwaraPalette from './components/SwaraPalette';
 import NoteEditor from './components/NoteEditor';
@@ -299,6 +300,11 @@ export default function App() {
       const engineId = useStore.getState().pitchEngine;
       const execMode = useStore.getState().pitchExecMode;
       const engine = getEngine(engineId);
+      const currentTala = useStore.getState().tala;
+      const currentBpm = useStore.getState().bpm;
+      const recStart = useStore.getState().recordingStartTime;
+      const isMetered = currentTala !== 'Alapana (Unmetered)';
+      const beatDurMs = isMetered ? (60 / currentBpm) * 1000 : 0;
 
       (async () => {
         try {
@@ -344,6 +350,7 @@ export default function App() {
                       confidence: swaraConf,
                       frequency: swaraFreq / swaraCount,
                       semitone: mapped.semitone,
+                      beat: isMetered ? Math.floor((swaraStart - recStart) / beatDurMs) : undefined,
                     });
                   }
                   prevSwara = key;
@@ -371,6 +378,7 @@ export default function App() {
                   confidence: swaraConf,
                   frequency: swaraFreq / swaraCount,
                   semitone: 0,
+                  beat: isMetered ? Math.floor((swaraStart - recStart) / beatDurMs) : undefined,
                 });
               }
               prevSwara = null;
@@ -714,6 +722,7 @@ export default function App() {
       )}
 
       <TweaksPanel />
+      <HelpFAQ />
       <MobileNav />
 
       {/* Toast notification */}

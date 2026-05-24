@@ -85,7 +85,7 @@ export default function ConfigStrip() {
       )}
 
       {swaras.length > 0 && (
-        <button className="config-chip" style={{ color: 'var(--text-dim)' }} onClick={clearResults}>
+        <button className="config-chip clear-btn-desktop" style={{ color: 'var(--text-dim)', marginLeft: 'auto' }} onClick={clearResults}>
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 6A4 4 0 0 1 9.5 3.5M2.5 3.5H5.5v3" />
             <path d="M10 6A4 4 0 0 1 2.5 8.5M9.5 8.5H6.5v-3" />
@@ -99,21 +99,36 @@ export default function ConfigStrip() {
   return (
     <div className={`config-strip${mobileConfigExpanded ? ' expanded' : ''}`}>
       {/* Mobile: show summary that expands */}
-      <div className="config-summary" onClick={toggleMobileConfig}>
-        <div className="config-summary-chip">
-          <span className="label">Key</span> {shruti}
+      <div className="config-summary">
+        <div className="config-summary-left" onClick={toggleMobileConfig}>
+          <div className="config-summary-chip">
+            <span className="label">Key</span> {shruti}
+          </div>
+          <div className="config-summary-chip">
+            <span className="label">Scale</span> {raga === 'Custom' ? 'Custom' : raga}
+          </div>
+          <div className="config-summary-chip">
+            <span className="label">Rhythm</span> {tala === 'Alapana (Unmetered)' ? 'Unmetered' : tala.split(' ')[0]}
+          </div>
+          <div className={`config-expand-icon${mobileConfigExpanded ? ' expanded' : ''}`}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 4.5l3 3 3-3" />
+            </svg>
+          </div>
         </div>
-        <div className="config-summary-chip">
-          <span className="label">Scale</span> {raga === 'Custom' ? 'Custom' : raga}
-        </div>
-        <div className="config-summary-chip">
-          <span className="label">Rhythm</span> {tala === 'Alapana (Unmetered)' ? 'Free' : tala.split(' ')[0]}
-        </div>
-        <div className={`config-expand-icon${mobileConfigExpanded ? ' expanded' : ''}`}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3 4.5l3 3 3-3" />
-          </svg>
-        </div>
+        {swaras.length > 0 && (
+          <button
+            className="config-chip clear-btn"
+            onClick={(e) => { e.stopPropagation(); clearResults(); }}
+            style={{ color: 'var(--text-dim)', marginLeft: 'auto' }}
+          >
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 6A4 4 0 0 1 9.5 3.5M2.5 3.5H5.5v3" />
+              <path d="M10 6A4 4 0 0 1 2.5 8.5M9.5 8.5H6.5v-3" />
+            </svg>
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Full config (always visible on desktop, toggle on mobile) */}

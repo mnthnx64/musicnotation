@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import useStore from '../store';
 import StaffNotation from './StaffNotation';
+import { TALA_STRUCTURE, getTalaBeats } from '../data/constants';
 
 const CLEF_W = 16;
 const BASE_W = 60;
@@ -14,8 +15,57 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   const [containerW, setContainerW] = useState(800);
   const mode = useStore((s) => s.mode);
   const shruti = useStore((s) => s.shruti);
+  const tala = useStore((s) => s.tala);
+  const customTalaGroups = useStore((s) => s.customTalaGroups);
   const selectedNoteIdx = useStore((s) => s.selectedNoteIdx);
   const setSelectedNoteIdx = useStore((s) => s.setSelectedNoteIdx);
+  const deleteSwara = useStore((s) => s.deleteSwara);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const meta = e.metaKey || e.ctrlKey;
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteIdx >= 0) {
+        e.preventDefault();
+        deleteSwara(selectedNoteIdx);
+        return;
+      }
+
+      if (meta && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      if ((meta && e.key === 'z' && e.shiftKey) || (meta && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      if (e.key === 'ArrowLeft' && selectedNoteIdx > 0) {
+        e.preventDefault();
+        setSelectedNoteIdx(selectedNoteIdx - 1);
+        return;
+      }
+
+      if (e.key === 'ArrowRight' && selectedNoteIdx >= 0 && selectedNoteIdx < swaras.length - 1) {
+        e.preventDefault();
+        setSelectedNoteIdx(selectedNoteIdx + 1);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedNoteIdx(-1);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNoteIdx, swaras.length, deleteSwara, undo, redo, setSelectedNoteIdx]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -28,6 +78,9 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
     return () => ro.disconnect();
   }, []);
 
+  const isMetered = tala !== 'Alapana (Unmetered)';
+  const hasBeatInfo = isMetered && swaras.length > 0 && swaras[0].beat !== undefined;
+
   const rowH = SARGAM_H + TIME_H;
   const maxDur = Math.max(0.1, ...swaras.map(s => s.duration));
   const minW = 28;
@@ -39,7 +92,6 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   const rows = [];
   let currentRow = [];
   let rowX = CLEF_W;
-
   for (let i = 0; i < swaras.length; i++) {
     const w = noteWidths[i];
     if (rowX + w > containerW - 8 && currentRow.length > 0) {
@@ -104,6 +156,23 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
     );
   }
 
+  if (hasBeatInfo) {
+    return (
+      <div ref={containerRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
+        <BeatAlignedView
+          swaras={swaras}
+          tala={tala}
+          customTalaGroups={customTalaGroups}
+          containerW={containerW}
+          selectedNoteIdx={selectedNoteIdx}
+          setSelectedNoteIdx={setSelectedNoteIdx}
+          playbackTime={playbackTime}
+          isPlaying={isPlaying}
+        />
+      </div>
+    );
+  }
+
   if (mode === 'western') {
     return (
       <div ref={containerRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
@@ -130,6 +199,132 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
       <svg width={containerW} height={svgH} style={{ display: 'block' }}>
         {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, setSelectedNoteIdx, getRowTop))}
       </svg>
+    </div>
+  );
+}
+
+function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedNoteIdx, setSelectedNoteIdx }) {
+  const beatsPerCycle = tala === 'Custom'
+    ? customTalaGroups.reduce((a, b) => a + b, 0)
+    : getTalaBeats(tala);
+  const structure = tala === 'Custom'
+    ? customTalaGroups
+    : (TALA_STRUCTURE[tala] || [beatsPerCycle]);
+
+  const sectionBounds = new Set();
+  let sum = 0;
+  for (let i = 0; i < structure.length - 1; i++) {
+    sum += structure[i];
+    sectionBounds.add(sum);
+  }
+
+  const maxBeat = Math.max(0, ...swaras.map(s => s.beat ?? 0));
+  const totalCycles = Math.max(1, Math.ceil((maxBeat + 1) / beatsPerCycle));
+
+  const cellW = Math.max(44, Math.floor((containerW - 40) / beatsPerCycle));
+  const cellH = 52;
+  const headerH = 24;
+  const rowGap = 4;
+
+  const beatMap = {};
+  swaras.forEach((s, idx) => {
+    const beat = s.beat ?? 0;
+    if (!beatMap[beat]) beatMap[beat] = [];
+    beatMap[beat].push({ ...s, idx });
+  });
+
+  return (
+    <div style={{ padding: 12, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', marginBottom: 4, paddingLeft: 32 }}>
+        {Array.from({ length: beatsPerCycle }).map((_, bi) => {
+          const isSam = bi === 0;
+          const isSec = sectionBounds.has(bi);
+          return (
+            <div key={bi} style={{
+              width: cellW, minWidth: cellW, textAlign: 'center',
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+              fontWeight: isSam ? 700 : 500,
+              color: isSam ? 'var(--accent)' : 'var(--text-dim)',
+              borderLeft: isSec ? '2px solid var(--text-dim)' : 'none',
+              paddingLeft: isSec ? 2 : 0,
+              height: headerH, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {bi + 1}
+            </div>
+          );
+        })}
+      </div>
+
+      {Array.from({ length: totalCycles }).map((_, cycleIdx) => (
+        <div key={cycleIdx} style={{ display: 'flex', marginBottom: rowGap, alignItems: 'stretch' }}>
+          <div style={{
+            width: 28, minWidth: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+            color: 'var(--text-dim)', fontWeight: 500,
+          }}>
+            {cycleIdx + 1}
+          </div>
+          {Array.from({ length: beatsPerCycle }).map((_, bi) => {
+            const globalBeat = cycleIdx * beatsPerCycle + bi;
+            const notes = beatMap[globalBeat];
+            const isSam = bi === 0;
+            const isSec = sectionBounds.has(bi);
+            const hasNote = notes && notes.length > 0;
+            const isSelected = hasNote && notes.some(n => n.idx === selectedNoteIdx);
+
+            return (
+              <div
+                key={bi}
+                onClick={() => {
+                  if (hasNote) setSelectedNoteIdx(isSelected ? -1 : notes[0].idx);
+                }}
+                style={{
+                  width: cellW, minWidth: cellW, height: cellH,
+                  border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-dim)'}`,
+                  borderLeft: isSec ? '2px solid var(--text-dim)' : `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-dim)'}`,
+                  background: isSam
+                    ? (hasNote ? 'var(--accent-glow)' : 'rgba(var(--accent-rgb, 180, 80, 60), 0.04)')
+                    : (isSelected ? 'var(--accent-glow)' : (hasNote ? 'var(--bg-surface)' : 'var(--bg)')),
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  cursor: hasNote ? 'pointer' : 'default',
+                  borderRadius: 4, transition: 'all 0.1s',
+                  gap: 2,
+                }}
+              >
+                {hasNote ? (
+                  notes.length === 1 ? (
+                    <>
+                      {notes[0].octaveOffset > 0 && <span style={{ fontSize: 8, color: 'var(--accent)', lineHeight: 1 }}>&middot;</span>}
+                      <span style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: notes[0].confidence < 0.75 ? 12 : 14,
+                        fontWeight: 600,
+                        color: notes[0].confidence < 0.75 ? 'var(--text-dim)' : 'var(--text)',
+                        fontStyle: notes[0].confidence < 0.6 ? 'italic' : 'normal',
+                      }}>
+                        {notes[0].swara}
+                      </span>
+                      {notes[0].octaveOffset < 0 && <span style={{ fontSize: 8, color: 'var(--accent-dim)', lineHeight: 1 }}>&middot;</span>}
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {notes.map((n, ni) => (
+                        <span key={ni} style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 11, fontWeight: 600, color: 'var(--text)',
+                        }}>
+                          {n.swara}
+                        </span>
+                      ))}
+                    </div>
+                  )
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

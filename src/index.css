@@ -160,7 +160,14 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 
 .config-summary {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  cursor: pointer; padding: 4px 0;
+  padding: 4px 0;
+}
+.config-summary-left {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; flex: 1;
+}
+.config-summary .clear-btn {
+  flex-shrink: 0;
 }
 .config-summary-chip {
   display: flex; align-items: center; gap: 4px;
@@ -170,7 +177,7 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 }
 .config-summary-chip .label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .config-expand-icon {
-  margin-left: auto; width: 20px; height: 20px;
+  width: 20px; height: 20px;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-dim); transition: transform 0.2s;
 }
@@ -233,6 +240,14 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
   border-bottom: 1px solid var(--border-dim);
   flex-shrink: 0; animation: slideDown 0.2s ease;
 }
+.met-play-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--accent-dim);
+  background: var(--accent-glow); cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  color: var(--accent); transition: all 0.15s ease; flex-shrink: 0;
+}
+.met-play-btn:active { transform: scale(0.92); }
+.met-play-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .met-bpm-control { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .met-bpm-btn {
   width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
@@ -263,6 +278,7 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 }
 .met-beat.sam .met-dot { width: 12px; height: 12px; background: var(--accent-dim); }
 .met-beat.section-start .met-dot { width: 10px; height: 10px; background: var(--text-dim); }
+.met-beat.active .met-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); transform: scale(1.3); }
 .met-num {
   font-family: 'JetBrains Mono', monospace; font-size: 8px;
   color: var(--text-dim); line-height: 1;
@@ -509,7 +525,7 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 
 /* ── TWEAKS PANEL ── */
 .tweaks-overlay {
-  position: fixed; inset: 0; z-index: 50;
+  position: fixed; inset: 0; z-index: 60;
   background: oklch(0 0 0 / 0.4);
   animation: fadeIn 0.15s ease;
 }
@@ -517,15 +533,17 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 
 .tweaks-panel {
   position: fixed; bottom: 0; left: 0; right: 0; width: 100%;
-  max-height: 85vh; overflow-y: auto;
+  max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: 16px 16px 0 0; padding: 16px;
-  padding-bottom: calc(16px + var(--safe-bottom));
+  padding-bottom: calc(80px + var(--safe-bottom));
   box-shadow: 0 -8px 32px oklch(0 0 0 / 0.4);
   animation: slideUpPanel 0.25s ease;
 }
 @keyframes slideUpPanel { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes panelIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
 .tweaks-handle {
   width: 36px; height: 4px; border-radius: 2px; background: var(--border);
@@ -557,6 +575,108 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 }
 .tweak-advanced-toggle svg { width: 12px; height: 12px; transition: transform 0.2s; }
 .tweak-advanced-toggle.expanded svg { transform: rotate(180deg); }
+
+.tweak-hint {
+  font-size: 11px; color: var(--text-dim); margin: -4px 0 8px;
+  line-height: 1.4; font-style: italic;
+}
+.tweak-slider-hint {
+  font-size: 10px; color: var(--text-dim); margin: -2px 0 6px;
+  padding-left: 2px; opacity: 0.8;
+}
+.tweak-help-btn {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 12px 0; margin-top: 8px;
+  border: none; border-top: 1px solid var(--border-dim);
+  background: transparent; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: var(--accent);
+  font-family: 'DM Sans', sans-serif;
+}
+.tweak-help-btn:hover { opacity: 0.8; }
+
+/* ── HELP / FAQ ── */
+.help-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.help-panel {
+  background: var(--bg); border-radius: 16px;
+  width: 100%; max-width: 600px; max-height: 85vh;
+  overflow-y: auto; overscroll-behavior: contain;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column;
+}
+.help-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 12px; position: sticky; top: 0;
+  background: var(--bg); z-index: 1;
+  border-bottom: 1px solid var(--border-dim);
+}
+.help-title {
+  font-size: 18px; font-weight: 600; color: var(--text);
+  margin: 0; font-family: 'DM Sans', sans-serif;
+}
+.help-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--border-dim); background: transparent;
+  cursor: pointer; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.help-content { padding: 16px 24px 24px; }
+.help-section { margin-bottom: 20px; }
+.help-section-title {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 0 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.help-item {
+  margin-bottom: 6px; border-radius: 8px;
+  border: 1px solid var(--border-dim);
+  overflow: hidden;
+}
+.help-item[open] { background: var(--bg-surface); }
+.help-question {
+  padding: 10px 14px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text);
+  list-style: none; display: flex; align-items: center;
+}
+.help-question::before {
+  content: '▸'; margin-right: 8px; color: var(--text-dim);
+  transition: transform 0.2s; font-size: 11px;
+}
+.help-item[open] .help-question::before { transform: rotate(90deg); }
+.help-question::-webkit-details-marker { display: none; }
+.help-answer {
+  padding: 0 14px 12px; font-size: 12px; line-height: 1.6;
+  color: var(--text-muted);
+}
+.help-answer p { margin: 0 0 4px; white-space: pre-wrap; }
+.help-shortcuts {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 0;
+}
+.shortcut-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-muted);
+}
+.shortcut-row span { margin-left: auto; }
+.shortcut-row kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; padding: 2px 6px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 4px; font-size: 11px; font-weight: 500;
+  font-family: 'JetBrains Mono', monospace; color: var(--text);
+}
+
+@media (max-width: 480px) {
+  .help-panel { max-width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0; }
+  .help-overlay { align-items: flex-end; padding: 0; }
+  .help-content { padding: 12px 16px 20px; }
+  .help-header { padding: 16px 16px 10px; }
+}
 
 /* ── STAFF NOTATION ── */
 .staff-notation-wrap { padding: 8px 0; }
@@ -828,14 +948,15 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
   .timer { font-size: 20px; }
   .control-right { min-width: 80px; }
 
+  .tweaks-overlay { background: oklch(0 0 0 / 0.25); z-index: 60; }
   .tweaks-panel {
-    position: absolute; bottom: 80px; right: 16px;
-    width: 280px; max-height: none; overflow-y: visible;
-    border-radius: 12px; left: auto;
-    animation: panelIn 0.2s ease;
+    position: fixed; top: 0; right: 0; bottom: 0; left: auto;
+    width: 300px; max-height: none; height: 100vh;
+    border-radius: 0; border-left: 1px solid var(--border);
+    overflow-y: auto; padding: 20px; padding-bottom: 20px;
+    animation: slideInRight 0.2s ease;
+    box-shadow: -4px 0 24px oklch(0 0 0 / 0.3);
   }
-  .tweaks-overlay { background: transparent; pointer-events: none; }
-  .tweaks-panel { pointer-events: all; }
   .tweaks-handle { display: none; }
 
   .composer-grid-wrap { padding: 20px; }

@@ -21,7 +21,15 @@ const useStore = create((set, get) => ({
   raga: 'Custom',
   setRaga: (raga) => set({ raga }),
   tala: 'Alapana (Unmetered)',
-  setTala: (tala) => set({ tala }),
+  setTala: (tala) => {
+    const state = get();
+    const isMetered = tala !== 'Alapana (Unmetered)';
+    const beatDurSec = isMetered ? 60 / state.bpm : 0;
+    const swaras = state.swaras.length > 0 && isMetered
+      ? state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
+      : isMetered ? state.swaras : state.swaras.map(s => { const { beat, ...rest } = s; return rest; });
+    set({ tala, swaras });
+  },
   customTalaGroups: [4, 4],
   setCustomTalaGroups: (g) => set({ customTalaGroups: g }),
 
@@ -36,7 +44,15 @@ const useStore = create((set, get) => ({
 
   // BPM / metronome
   bpm: 72,
-  setBpm: (bpm) => set({ bpm }),
+  setBpm: (bpm) => {
+    const state = get();
+    const isMetered = state.tala !== 'Alapana (Unmetered)';
+    const beatDurSec = isMetered ? 60 / bpm : 0;
+    const swaras = state.swaras.length > 0 && isMetered
+      ? state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
+      : state.swaras;
+    set({ bpm, swaras });
+  },
 
   // File state
   fileName: null,
@@ -56,19 +72,26 @@ const useStore = create((set, get) => ({
   swaras: [],
   pitchData: [],
 
-  setResults: ({ tonic, swaras, pitchData, duration, sampleRate, samples, fileName }) =>
+  setResults: ({ tonic, swaras, pitchData, duration, sampleRate, samples, fileName }) => {
+    const state = get();
+    const isMetered = state.tala !== 'Alapana (Unmetered)';
+    const beatDurSec = isMetered ? 60 / state.bpm : 0;
+    const quantized = isMetered
+      ? swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
+      : swaras;
     set({
       detectedTonic: tonic,
-      swaras,
+      swaras: quantized,
       pitchData,
       audioDuration: duration,
       audioSamples: samples,
       audioSampleRate: sampleRate,
-      fileName: fileName || get().fileName,
+      fileName: fileName || state.fileName,
       isProcessing: false,
       processProgress: 1,
       processStage: 'done',
-    }),
+    });
+  },
 
   clearResults: () =>
     set({
@@ -99,8 +122,9 @@ const useStore = create((set, get) => ({
   elapsed: 0,
   confidence: 0,
   liveSwara: null,
+  recordingStartTime: null,
 
-  startRecording: () => set({ isRecording: true, isPaused: false }),
+  startRecording: () => set({ isRecording: true, isPaused: false, recordingStartTime: Date.now() }),
   stopRecording: () => set({ isRecording: false, isPaused: false, liveSwara: null }),
   togglePause: () => set((s) => ({ isPaused: !s.isPaused })),
   incrementElapsed: () => set((s) => ({ elapsed: s.elapsed + 1 })),
@@ -124,7 +148,8 @@ const useStore = create((set, get) => ({
   deleteSwara: (idx) => set((s) => {
     const next = s.swaras.filter((_, i) => i !== idx);
     const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
-    return { swaras: next, selectedNoteIdx: -1, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+    const newIdx = next.length === 0 ? -1 : Math.min(idx, next.length - 1);
+    return { swaras: next, selectedNoteIdx: newIdx, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
   }),
 
   insertSwara: (idx, swara) => set((s) => {
@@ -160,6 +185,8 @@ const useStore = create((set, get) => ({
   toggleTweaks: () => set((s) => ({ tweaksOpen: !s.tweaksOpen })),
   showAdvancedTweaks: false,
   toggleAdvancedTweaks: () => set((s) => ({ showAdvancedTweaks: !s.showAdvancedTweaks })),
+  showHelp: false,
+  toggleHelp: () => set((s) => ({ showHelp: !s.showHelp })),
 
   // Mobile UI
   mobileConfigExpanded: false,

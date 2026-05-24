@@ -4,6 +4,10 @@ let ctx = null;
 let scheduledNodes = [];
 let stopCallback = null;
 
+// Metronome state
+let metronomeInterval = null;
+let metronomeCtx = null;
+
 function getContext() {
   if (!ctx || ctx.state === 'closed') ctx = new AudioContext();
   if (ctx.state === 'suspended') ctx.resume();
@@ -41,7 +45,6 @@ export function playComposition(avartanams, bpm, shrutiNote, onBeat, onDone) {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, time);
 
-          // Gentle envelope
           gain.gain.setValueAtTime(0, time);
           gain.gain.linearRampToValueAtTime(0.25, time + 0.015);
           gain.gain.setValueAtTime(0.25, time + subDur * 0.7);
@@ -55,7 +58,6 @@ export function playComposition(avartanams, bpm, shrutiNote, onBeat, onDone) {
         }
       }
 
-      // Schedule beat position callback
       const cbTime = startTime + beatIndex * beatDur;
       const beatTimeout = setTimeout(() => {
         onBeat?.({ row: ri, col: ci });
@@ -86,4 +88,68 @@ export function stopPlayback() {
   }
   scheduledNodes = [];
   stopCallback = null;
+}
+
+function playClick(ac, frequency, time, volume) {
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(frequency, time);
+  gain.gain.setValueAtTime(volume, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(time);
+  osc.stop(time + 0.1);
+}
+
+export function startMetronome(bpm, beatsPerCycle, structure, onTick) {
+  stopMetronome();
+
+  if (!metronomeCtx || metronomeCtx.state === 'closed') {
+    metronomeCtx = new AudioContext();
+  }
+  if (metronomeCtx.state === 'suspended') metronomeCtx.resume();
+
+  const ac = metronomeCtx;
+  const beatDur = 60 / bpm;
+  let beatIndex = 0;
+
+  const sectionBounds = new Set();
+  let sum = 0;
+  for (let i = 0; i < structure.length - 1; i++) {
+    sum += structure[i];
+    sectionBounds.add(sum);
+  }
+
+  const tick = () => {
+    const now = ac.currentTime;
+    const isSam = beatIndex % beatsPerCycle === 0;
+    const isSectionStart = sectionBounds.has(beatIndex % beatsPerCycle);
+
+    if (isSam) {
+      playClick(ac, 1200, now, 0.5);
+    } else if (isSectionStart) {
+      playClick(ac, 900, now, 0.35);
+    } else {
+      playClick(ac, 700, now, 0.2);
+    }
+
+    onTick?.(beatIndex % beatsPerCycle);
+    beatIndex++;
+  };
+
+  tick();
+  metronomeInterval = setInterval(tick, beatDur * 1000);
+}
+
+export function stopMetronome() {
+  if (metronomeInterval) {
+    clearInterval(metronomeInterval);
+    metronomeInterval = null;
+  }
+}
+
+export function isMetronomePlaying() {
+  return metronomeInterval !== null;
 }

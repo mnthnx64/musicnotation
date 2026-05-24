@@ -7,6 +7,7 @@ export default function Header() {
   const setMode = useStore((s) => s.setMode);
   const isRecording = useStore((s) => s.isRecording);
   const toggleTweaks = useStore((s) => s.toggleTweaks);
+  const toggleHelp = useStore((s) => s.toggleHelp);
 
   return (
     <header className="header">
@@ -52,6 +53,13 @@ export default function Header() {
             LIVE
           </div>
         )}
+        <button className="icon-btn" onClick={toggleHelp} title="Help & FAQ">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="8" cy="8" r="7" />
+            <path d="M6 6.5a2 2 0 0 1 3.5 1.5c0 1-1.5 1.5-1.5 2.5" />
+            <circle cx="8" cy="12.5" r="0.5" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <button className="icon-btn" onClick={toggleTweaks} title="Settings">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="8" cy="4" r="1.5"/><line x1="8" y1="1" x2="8" y2="2.5"/><line x1="8" y1="5.5" x2="8" y2="15"/>
