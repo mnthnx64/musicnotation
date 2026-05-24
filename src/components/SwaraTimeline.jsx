@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import useStore from '../store';
 import StaffNotation from './StaffNotation';
 import { TALA_STRUCTURE, getTalaBeats } from '../data/constants';
@@ -10,6 +10,8 @@ const SARGAM_H = 80;
 const TIME_H = 22;
 const ROW_GAP = 14;
 
+const SWARA_OPTIONS = ['Sa', 'Ri₁', 'Ri₂', 'Ga₁', 'Ga₂', 'Ga₃', 'Ma₁', 'Ma₂', 'Pa', 'Da₁', 'Da₂', 'Ni₁', 'Ni₂', 'Ni₃'];
+
 export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   const containerRef = useRef(null);
   const [containerW, setContainerW] = useState(800);
@@ -19,18 +21,38 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   const customTalaGroups = useStore((s) => s.customTalaGroups);
   const selectedNoteIdx = useStore((s) => s.selectedNoteIdx);
   const setSelectedNoteIdx = useStore((s) => s.setSelectedNoteIdx);
+  const selectedRange = useStore((s) => s.selectedRange);
+  const setSelectedRange = useStore((s) => s.setSelectedRange);
+  const clearSelection = useStore((s) => s.clearSelection);
   const deleteSwara = useStore((s) => s.deleteSwara);
+  const deleteRange = useStore((s) => s.deleteRange);
+  const groupSpeed = useStore((s) => s.groupSpeed);
+  const mergeSwaras = useStore((s) => s.mergeSwaras);
+  const groupSwaras = useStore((s) => s.groupSwaras);
+  const ungroupSwaras = useStore((s) => s.ungroupSwaras);
   const undo = useStore((s) => s.undo);
   const redo = useStore((s) => s.redo);
+
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
+  const [showMergeInput, setShowMergeInput] = useState(false);
+  const [mergeSwara, setMergeSwara] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       const meta = e.metaKey || e.ctrlKey;
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteIdx >= 0) {
-        e.preventDefault();
-        deleteSwara(selectedNoteIdx);
-        return;
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        if (selectedRange) {
+          e.preventDefault();
+          deleteRange(selectedRange.start, selectedRange.end);
+          return;
+        }
+        if (selectedNoteIdx >= 0) {
+          e.preventDefault();
+          deleteSwara(selectedNoteIdx);
+          return;
+        }
       }
 
       if (meta && e.key === 'z' && !e.shiftKey) {
@@ -58,14 +80,38 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
       }
 
       if (e.key === 'Escape') {
-        setSelectedNoteIdx(-1);
+        clearSelection();
+        setShowMergeInput(false);
         return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNoteIdx, swaras.length, deleteSwara, undo, redo, setSelectedNoteIdx]);
+  }, [selectedNoteIdx, selectedRange, swaras.length, deleteSwara, deleteRange, undo, redo, setSelectedNoteIdx, clearSelection]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (dragStart !== null && dragEnd !== null) {
+        if (dragStart !== dragEnd) {
+          const start = Math.min(dragStart, dragEnd);
+          const end = Math.max(dragStart, dragEnd);
+          setSelectedRange({ start, end });
+        } else {
+          setSelectedNoteIdx(dragStart);
+        }
+      }
+      setDragStart(null);
+      setDragEnd(null);
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [dragStart, dragEnd, setSelectedRange, setSelectedNoteIdx]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -78,6 +124,66 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
     return () => ro.disconnect();
   }, []);
 
+  const handleNoteMouseDown = useCallback((idx, e) => {
+    if (e.shiftKey && selectedNoteIdx >= 0) {
+      const start = Math.min(selectedNoteIdx, idx);
+      const end = Math.max(selectedNoteIdx, idx);
+      setSelectedRange({ start, end });
+      return;
+    }
+    setDragStart(idx);
+    setDragEnd(idx);
+  }, [selectedNoteIdx, setSelectedRange]);
+
+  const handleNoteMouseEnter = useCallback((idx) => {
+    if (dragStart !== null) {
+      setDragEnd(idx);
+    }
+  }, [dragStart]);
+
+  const handleGroupSpeed = useCallback(() => {
+    if (selectedRange) {
+      groupSpeed(selectedRange.start, selectedRange.end);
+    }
+  }, [selectedRange, groupSpeed]);
+
+  const handleMergeStart = useCallback(() => {
+    setShowMergeInput(true);
+    setMergeSwara('');
+  }, []);
+
+  const handleGroup = useCallback(() => {
+    if (selectedRange) {
+      groupSwaras(selectedRange.start, selectedRange.end);
+    }
+  }, [selectedRange, groupSwaras]);
+
+  const handleUngroup = useCallback(() => {
+    if (selectedRange) {
+      ungroupSwaras(selectedRange.start, selectedRange.end);
+    }
+  }, [selectedRange, ungroupSwaras]);
+
+  const confirmMerge = useCallback((swara) => {
+    if (selectedRange) {
+      mergeSwaras(selectedRange.start, selectedRange.end, swara || null);
+      setShowMergeInput(false);
+      setMergeSwara('');
+    }
+  }, [selectedRange, mergeSwaras]);
+
+  const isInDragRange = (idx) => {
+    if (dragStart === null || dragEnd === null) return false;
+    const start = Math.min(dragStart, dragEnd);
+    const end = Math.max(dragStart, dragEnd);
+    return idx >= start && idx <= end;
+  };
+
+  const isInSelectedRange = (idx) => {
+    if (!selectedRange) return false;
+    return idx >= selectedRange.start && idx <= selectedRange.end;
+  };
+
   const isMetered = tala !== 'Alapana (Unmetered)';
   const hasBeatInfo = isMetered && swaras.length > 0 && swaras[0].beat !== undefined;
 
@@ -89,18 +195,27 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
     return Math.max(minW, normalized * BASE_W * 3);
   });
 
+  const GROUP_PAD = 10;
+
   const rows = [];
   let currentRow = [];
   let rowX = CLEF_W;
   for (let i = 0; i < swaras.length; i++) {
+    const isGroupStart = swaras[i].groupId !== undefined && (i === 0 || swaras[i - 1].groupId !== swaras[i].groupId);
+    const isGroupEnd = swaras[i].groupId !== undefined && (i === swaras.length - 1 || swaras[i + 1].groupId !== swaras[i].groupId);
+    const prevWasGroupEnd = i > 0 && swaras[i - 1].groupId !== undefined && swaras[i - 1].groupId !== swaras[i].groupId;
+
+    if (isGroupStart || prevWasGroupEnd) rowX += GROUP_PAD;
+
     const w = noteWidths[i];
     if (rowX + w > containerW - 8 && currentRow.length > 0) {
       rows.push(currentRow);
       currentRow = [];
       rowX = CLEF_W;
     }
-    currentRow.push({ s: swaras[i], xL: rowX, w, idx: i });
+    currentRow.push({ s: swaras[i], xL: rowX, w, idx: i, isGroupStart, isGroupEnd });
     rowX += w + PAD;
+    if (isGroupEnd) rowX += GROUP_PAD;
   }
   if (currentRow.length > 0) rows.push(currentRow);
 
@@ -136,6 +251,79 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
     }
   }, [activeIdx]);
 
+  const selectionToolbar = selectedRange && (
+    <div className="selection-toolbar">
+      <span className="selection-info">
+        {selectedRange.end - selectedRange.start + 1} notes selected
+      </span>
+      <button className="sel-action-btn" onClick={handleGroupSpeed} title="Set all selected notes to the same (fastest) speed">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 13, height: 13 }}>
+          <path d="M2 14l4-4M6 14l4-4M10 14l4-4" />
+          <path d="M3 6l3-4 3 4" />
+        </svg>
+        Same Speed
+      </button>
+      <button className="sel-action-btn" onClick={handleGroup} title="Visually group selected notes together">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 13, height: 13 }}>
+          <rect x="2" y="4" width="12" height="8" rx="2" />
+          <path d="M5 8h6" />
+        </svg>
+        Group
+      </button>
+      <button className="sel-action-btn" onClick={handleUngroup} title="Remove grouping from selected notes">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 13, height: 13 }}>
+          <rect x="2" y="4" width="12" height="8" rx="2" strokeDasharray="2 2" />
+          <path d="M4 8h8" />
+        </svg>
+        Ungroup
+      </button>
+      <button className="sel-action-btn" onClick={handleMergeStart} title="Merge selected notes into one">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 13, height: 13 }}>
+          <path d="M4 4l4 4-4 4M12 4l-4 4 4 4" />
+        </svg>
+        Merge
+      </button>
+      <button className="sel-action-btn danger" onClick={() => deleteRange(selectedRange.start, selectedRange.end)} title="Delete selected notes">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 13, height: 13 }}>
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+        Delete
+      </button>
+      <button className="sel-action-btn subtle" onClick={clearSelection}>Cancel</button>
+    </div>
+  );
+
+  const mergeDialog = showMergeInput && selectedRange && (
+    <div className="merge-dialog-overlay" onClick={() => setShowMergeInput(false)}>
+      <div className="merge-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="merge-dialog-title">Merge {selectedRange.end - selectedRange.start + 1} notes into one</div>
+        <div className="merge-dialog-subtitle">
+          Merging: {swaras.slice(selectedRange.start, selectedRange.end + 1).map(s => s.swara).join(' ')}
+        </div>
+        <div className="merge-dialog-options">
+          <button className="merge-option first" onClick={() => confirmMerge(null)}>
+            Keep first: <strong>{swaras[selectedRange.start].swara}</strong>
+          </button>
+          {SWARA_OPTIONS.map(sw => (
+            <button key={sw} className="merge-option" onClick={() => confirmMerge(sw)}>
+              {sw}
+            </button>
+          ))}
+        </div>
+        <div className="merge-dialog-custom">
+          <input
+            placeholder="Or type a swara name..."
+            value={mergeSwara}
+            onChange={(e) => setMergeSwara(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && mergeSwara) confirmMerge(mergeSwara); }}
+            autoFocus
+          />
+          <button onClick={() => confirmMerge(mergeSwara)} disabled={!mergeSwara}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (!swaras.length) {
     return (
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
@@ -159,6 +347,8 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   if (hasBeatInfo) {
     return (
       <div ref={containerRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
+        {selectionToolbar}
+        {mergeDialog}
         <BeatAlignedView
           swaras={swaras}
           tala={tala}
@@ -166,6 +356,11 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
           containerW={containerW}
           selectedNoteIdx={selectedNoteIdx}
           setSelectedNoteIdx={setSelectedNoteIdx}
+          selectedRange={selectedRange}
+          isInSelectedRange={isInSelectedRange}
+          isInDragRange={isInDragRange}
+          handleNoteMouseDown={handleNoteMouseDown}
+          handleNoteMouseEnter={handleNoteMouseEnter}
           playbackTime={playbackTime}
           isPlaying={isPlaying}
         />
@@ -184,10 +379,12 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   if (mode === 'dual') {
     return (
       <div ref={containerRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
+        {selectionToolbar}
+        {mergeDialog}
         <StaffNotation swaras={swaras} playbackTime={playbackTime} isPlaying={isPlaying} shruti={shruti} />
         <div style={{ borderTop: '1px solid var(--border-dim)', marginTop: 8, paddingTop: 8 }}>
-          <svg width={containerW} height={svgH} style={{ display: 'block' }}>
-            {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, setSelectedNoteIdx, getRowTop))}
+          <svg width={containerW} height={svgH} style={{ display: 'block', userSelect: 'none' }}>
+            {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop))}
           </svg>
         </div>
       </div>
@@ -196,14 +393,16 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
 
   return (
     <div ref={containerRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
-      <svg width={containerW} height={svgH} style={{ display: 'block' }}>
-        {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, setSelectedNoteIdx, getRowTop))}
+      {selectionToolbar}
+      {mergeDialog}
+      <svg width={containerW} height={svgH} style={{ display: 'block', userSelect: 'none' }}>
+        {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop))}
       </svg>
     </div>
   );
 }
 
-function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedNoteIdx, setSelectedNoteIdx }) {
+function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedNoteIdx, setSelectedNoteIdx, selectedRange, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter }) {
   const beatsPerCycle = tala === 'Custom'
     ? customTalaGroups.reduce((a, b) => a + b, 0)
     : getTalaBeats(tala);
@@ -234,7 +433,7 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
   });
 
   return (
-    <div style={{ padding: 12, overflowX: 'auto' }}>
+    <div style={{ padding: 12, overflowX: 'auto', userSelect: 'none' }}>
       <div style={{ display: 'flex', marginBottom: 4, paddingLeft: 32 }}>
         {Array.from({ length: beatsPerCycle }).map((_, bi) => {
           const isSam = bi === 0;
@@ -271,20 +470,22 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
             const isSec = sectionBounds.has(bi);
             const hasNote = notes && notes.length > 0;
             const isSelected = hasNote && notes.some(n => n.idx === selectedNoteIdx);
+            const inRange = hasNote && notes.some(n => isInSelectedRange(n.idx) || isInDragRange(n.idx));
 
             return (
               <div
                 key={bi}
-                onClick={() => {
-                  if (hasNote) setSelectedNoteIdx(isSelected ? -1 : notes[0].idx);
-                }}
+                onMouseDown={(e) => { if (hasNote) handleNoteMouseDown(notes[0].idx, e); }}
+                onMouseEnter={() => { if (hasNote) handleNoteMouseEnter(notes[0].idx); }}
                 style={{
                   width: cellW, minWidth: cellW, height: cellH,
-                  border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-dim)'}`,
-                  borderLeft: isSec ? '2px solid var(--text-dim)' : `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-dim)'}`,
-                  background: isSam
-                    ? (hasNote ? 'var(--accent-glow)' : 'rgba(var(--accent-rgb, 180, 80, 60), 0.04)')
-                    : (isSelected ? 'var(--accent-glow)' : (hasNote ? 'var(--bg-surface)' : 'var(--bg)')),
+                  border: `1px solid ${isSelected || inRange ? 'var(--accent)' : 'var(--border-dim)'}`,
+                  borderLeft: isSec ? '2px solid var(--text-dim)' : `1px solid ${isSelected || inRange ? 'var(--accent)' : 'var(--border-dim)'}`,
+                  background: inRange
+                    ? 'var(--accent-glow)'
+                    : isSam
+                      ? (hasNote ? 'var(--accent-glow)' : 'rgba(var(--accent-rgb, 180, 80, 60), 0.04)')
+                      : (isSelected ? 'var(--accent-glow)' : (hasNote ? 'var(--bg-surface)' : 'var(--bg)')),
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center',
                   cursor: hasNote ? 'pointer' : 'default',
@@ -329,7 +530,7 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
   );
 }
 
-function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, setSelectedNoteIdx, getRowTop) {
+function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop) {
   const rTop = getRowTop(ri);
   const rowNotes = rows[ri] || [];
 
@@ -342,6 +543,7 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
         const midY = rTop + SARGAM_H / 2;
         const isActive = idx === activeIdx;
         const isSelected = idx === selectedNoteIdx;
+        const inRange = isInSelectedRange(idx) || isInDragRange(idx);
         const conf = s.confidence || 0;
         const confTier = conf >= 0.88 ? 'high' : conf >= 0.75 ? 'med' : 'low';
         const lowC = confTier === 'low';
@@ -354,11 +556,16 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
         return (
           <g key={`n${idx}`}
             style={{ cursor: 'pointer' }}
-            onClick={() => setSelectedNoteIdx?.(isSelected ? -1 : idx)}
+            onMouseDown={(e) => handleNoteMouseDown(idx, e)}
+            onMouseEnter={() => handleNoteMouseEnter(idx)}
           >
             {altBg && (
               <rect x={xL} y={rTop} width={w} height={SARGAM_H}
                 fill="var(--bg-surface)" opacity={0.3} />
+            )}
+            {inRange && (
+              <rect x={xL} y={rTop + 1} width={w} height={SARGAM_H - 2}
+                rx={5} fill="var(--accent-glow)" opacity={0.7} />
             )}
             {isActive && (
               <rect x={xL + 1} y={rTop + 4} width={w - 2} height={SARGAM_H - 8}
@@ -369,7 +576,11 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
                 rx={6} fill="none" stroke="var(--accent)" strokeWidth={1.5}
                 strokeDasharray={confTier === 'low' ? '3 2' : confTier === 'med' ? '5 3' : 'none'} />
             )}
-            {confTier !== 'high' && !isActive && !isSelected && (
+            {inRange && !isSelected && (
+              <rect x={xL} y={rTop + 2} width={w} height={SARGAM_H - 4}
+                rx={6} fill="none" stroke="var(--accent)" strokeWidth={1} opacity={0.6} />
+            )}
+            {confTier !== 'high' && !isActive && !isSelected && !inRange && (
               <rect x={xL + 1} y={rTop + 3} width={w - 2} height={SARGAM_H - 6}
                 rx={4} fill="none" stroke="var(--border)"
                 strokeWidth={0.8} opacity={0.4}
@@ -392,7 +603,7 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
               x={isLong ? xL + 8 : xC}
               y={midY + 5}
               textAnchor={isLong ? 'start' : 'middle'}
-              fontSize={fontSize} fontWeight={isActive || isSelected ? 600 : 400}
+              fontSize={fontSize} fontWeight={isActive || isSelected || inRange ? 600 : 400}
               fontFamily="JetBrains Mono, monospace" fill={color}
               fontStyle={lowC ? 'italic' : 'normal'}
               opacity={opacity}
@@ -415,7 +626,10 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
           const dur = rowNotes[i].s.duration;
           if (dur >= maxDur * 0.2) { i++; continue; }
           let j = i + 1;
-          while (j < rowNotes.length && rowNotes[j].s.duration < maxDur * 0.2) j++;
+          while (j < rowNotes.length && rowNotes[j].s.duration < maxDur * 0.2) {
+            if (rowNotes[j].s.groupId !== rowNotes[j - 1].s.groupId) break;
+            j++;
+          }
           if (j - i >= 2) {
             const x1 = rowNotes[i].xL + 3;
             const x2 = rowNotes[j - 1].xL + rowNotes[j - 1].w - 3;
@@ -427,6 +641,27 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
           }
           i = j;
         }
+
+        const groups = {};
+        rowNotes.forEach((n) => {
+          if (n.s.groupId !== undefined) {
+            if (!groups[n.s.groupId]) groups[n.s.groupId] = [];
+            groups[n.s.groupId].push(n);
+          }
+        });
+        Object.values(groups).forEach((gNotes) => {
+          if (gNotes.length >= 2) {
+            const gx1 = gNotes[0].xL;
+            const gx2 = gNotes[gNotes.length - 1].xL + gNotes[gNotes.length - 1].w;
+            beams.push(
+              <rect key={`grp-${ri}-${gNotes[0].idx}`}
+                x={gx1 - 2} y={rTop + SARGAM_H - 6}
+                width={gx2 - gx1 + 4} height={3}
+                rx={1.5} fill="var(--accent)" opacity={0.25} />
+            );
+          }
+        });
+
         return beams;
       })()}
 

@@ -678,6 +678,89 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
   .help-header { padding: 16px 16px 10px; }
 }
 
+/* ── SELECTION TOOLBAR ── */
+.selection-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; margin: 4px 8px;
+  background: var(--bg-surface); border: 1px solid var(--accent);
+  border-radius: 10px; flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  position: sticky; top: 4px; z-index: 10;
+}
+.selection-info {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  margin-right: 4px;
+}
+.sel-action-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg);
+  font-size: 11px; font-weight: 500; color: var(--text);
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+.sel-action-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
+.sel-action-btn.danger { color: var(--red); border-color: var(--red); }
+.sel-action-btn.danger:hover { background: rgba(200,60,60,0.08); }
+.sel-action-btn.subtle { border: none; color: var(--text-dim); background: transparent; }
+.sel-action-btn.subtle:hover { color: var(--text); }
+
+/* ── MERGE DIALOG ── */
+.merge-dialog-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.merge-dialog {
+  background: var(--bg); border-radius: 14px;
+  width: 100%; max-width: 400px; padding: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.merge-dialog-title {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  margin-bottom: 4px;
+}
+.merge-dialog-subtitle {
+  font-size: 12px; color: var(--text-dim); margin-bottom: 14px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.merge-dialog-options {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+}
+.merge-option {
+  padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  font-size: 12px; color: var(--text); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.merge-option:hover { border-color: var(--accent); background: var(--accent-glow); }
+.merge-option.first { border-color: var(--accent); font-weight: 600; }
+.merge-dialog-custom {
+  display: flex; gap: 8px; align-items: center;
+}
+.merge-dialog-custom input {
+  flex: 1; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  font-size: 13px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+}
+.merge-dialog-custom input:focus { outline: none; border-color: var(--accent); }
+.merge-dialog-custom button {
+  padding: 8px 14px; border-radius: 8px; border: none;
+  background: var(--accent); color: white; font-size: 12px;
+  font-weight: 600; cursor: pointer;
+}
+.merge-dialog-custom button:disabled { opacity: 0.4; cursor: default; }
+
+@media (max-width: 480px) {
+  .selection-toolbar { padding: 6px 8px; gap: 4px; margin: 4px; }
+  .sel-action-btn { padding: 6px 8px; font-size: 10px; }
+  .merge-dialog { max-width: 100%; margin: 0 8px; }
+}
+
 /* ── STAFF NOTATION ── */
 .staff-notation-wrap { padding: 8px 0; }
 

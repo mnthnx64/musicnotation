@@ -137,7 +137,10 @@ const useStore = create((set, get) => ({
 
   // Note editing
   selectedNoteIdx: -1,
-  setSelectedNoteIdx: (idx) => set({ selectedNoteIdx: idx }),
+  setSelectedNoteIdx: (idx) => set({ selectedNoteIdx: idx, selectedRange: null }),
+  selectedRange: null, // { start, end } inclusive indices
+  setSelectedRange: (range) => set({ selectedRange: range, selectedNoteIdx: -1 }),
+  clearSelection: () => set({ selectedNoteIdx: -1, selectedRange: null }),
 
   updateSwara: (idx, patch) => set((s) => {
     const next = s.swaras.map((sw, i) => i === idx ? { ...sw, ...patch } : sw);
@@ -150,6 +153,63 @@ const useStore = create((set, get) => ({
     const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
     const newIdx = next.length === 0 ? -1 : Math.min(idx, next.length - 1);
     return { swaras: next, selectedNoteIdx: newIdx, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  deleteRange: (start, end) => set((s) => {
+    const next = s.swaras.filter((_, i) => i < start || i > end);
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    const newIdx = next.length === 0 ? -1 : Math.min(start, next.length - 1);
+    return { swaras: next, selectedNoteIdx: newIdx, selectedRange: null, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  groupSpeed: (start, end) => set((s) => {
+    const selected = s.swaras.slice(start, end + 1);
+    if (selected.length < 2) return {};
+    const minDur = Math.min(...selected.map(n => n.duration));
+    const next = s.swaras.map((sw, i) => {
+      if (i >= start && i <= end) return { ...sw, duration: minDur };
+      return sw;
+    });
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, selectedRange: null, selectedNoteIdx: -1, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  mergeSwaras: (start, end, replacementSwara) => set((s) => {
+    const selected = s.swaras.slice(start, end + 1);
+    if (selected.length < 2) return {};
+    const merged = {
+      swara: replacementSwara || selected[0].swara,
+      octaveOffset: selected[0].octaveOffset,
+      time: selected[0].time,
+      duration: selected.reduce((sum, n) => sum + n.duration, 0),
+      confidence: Math.max(...selected.map(n => n.confidence)),
+      frequency: selected[0].frequency,
+      semitone: selected[0].semitone,
+      beat: selected[0].beat,
+    };
+    const next = [...s.swaras.slice(0, start), merged, ...s.swaras.slice(end + 1)];
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, selectedRange: null, selectedNoteIdx: start, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  _nextGroupId: 1,
+  groupSwaras: (start, end) => set((s) => {
+    const gid = s._nextGroupId;
+    const next = s.swaras.map((sw, i) => {
+      if (i >= start && i <= end) return { ...sw, groupId: gid };
+      return sw;
+    });
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, _nextGroupId: gid + 1, selectedRange: null, selectedNoteIdx: -1, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  ungroupSwaras: (start, end) => set((s) => {
+    const next = s.swaras.map((sw, i) => {
+      if (i >= start && i <= end) { const { groupId, ...rest } = sw; return rest; }
+      return sw;
+    });
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, selectedRange: null, selectedNoteIdx: -1, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
   }),
 
   insertSwara: (idx, swara) => set((s) => {

@@ -43,6 +43,22 @@ const FAQ_SECTIONS = [
         a: 'Click/tap any note to select it. Then use:\n• Delete/Backspace — remove the note\n• Arrow keys (← →) — navigate between notes\n• Cmd+Z / Ctrl+Z — undo\n• Cmd+Shift+Z / Ctrl+Y — redo\n• Escape — deselect',
       },
       {
+        q: 'How do I select multiple notes?',
+        a: 'Drag across notes to select a range, or click one note then Shift+click another to select everything between them. Selected notes glow with an accent highlight and a toolbar appears with group actions.',
+      },
+      {
+        q: 'What does "Same Speed" do?',
+        a: 'Sets all selected notes to the same duration (the shortest/fastest note in the selection). Use this when you want a group of notes to be rendered at equal speed — for example, turning a mix of slow and fast notes into a uniform rapid passage.',
+      },
+      {
+        q: 'What does "Group" do?',
+        a: 'Visually groups selected notes together. Grouped notes get extra spacing before and after them to stand apart from surrounding notes. If there are underline beams (connecting fast notes), they are split at group boundaries so the group\'s beam stays separate. Use this to mark musical phrases or patterns.',
+      },
+      {
+        q: 'What does "Merge" do?',
+        a: 'Combines multiple selected notes into a single note. The merged note\'s duration equals the sum of all selected notes. You can choose to keep the first note\'s name, pick a standard swara from a list, or type any custom name. Use this to fix pitch detection errors where one sustained note was incorrectly split into several.',
+      },
+      {
         q: 'Can I clear all notes and start over?',
         a: 'Yes — tap the "Clear" button in the config strip at the top. This removes all detected notes so you can re-record or re-upload.',
       },
@@ -143,11 +159,13 @@ export default function HelpFAQ() {
           <div className="help-section">
             <h3 className="help-section-title">Keyboard Shortcuts</h3>
             <div className="help-shortcuts">
-              <div className="shortcut-row"><kbd>Delete</kbd> / <kbd>Backspace</kbd><span>Delete selected note</span></div>
+              <div className="shortcut-row"><kbd>Delete</kbd> / <kbd>Backspace</kbd><span>Delete selected note(s)</span></div>
               <div className="shortcut-row"><kbd>←</kbd> <kbd>→</kbd><span>Navigate notes</span></div>
+              <div className="shortcut-row"><kbd>Shift</kbd>+<kbd>Click</kbd><span>Select range</span></div>
+              <div className="shortcut-row"><kbd>Drag</kbd><span>Select multiple notes</span></div>
               <div className="shortcut-row"><kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd><span>Undo</span></div>
               <div className="shortcut-row"><kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd><span>Redo</span></div>
-              <div className="shortcut-row"><kbd>Esc</kbd><span>Deselect note</span></div>
+              <div className="shortcut-row"><kbd>Esc</kbd><span>Deselect / cancel</span></div>
             </div>
           </div>
         </div>
