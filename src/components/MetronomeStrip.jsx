@@ -1,26 +1,29 @@
 import useStore from '../store';
-import { TALA_STRUCTURE, getTalaBeats } from '../data/constants';
+import { TALA_STRUCTURE, TALA_SECTION_NAMES, getTalaBeats } from '../data/constants';
 
 export default function MetronomeStrip() {
   const tala = useStore((s) => s.tala);
   const bpm = useStore((s) => s.bpm);
   const setBpm = useStore((s) => s.setBpm);
+  const customTalaGroups = useStore((s) => s.customTalaGroups);
 
-  if (tala === 'Alapana (Free)') return null;
+  if (tala === 'Alapana (Unmetered)') return null;
 
-  const beatsPerCycle = getTalaBeats(tala);
-  const structure = TALA_STRUCTURE[tala] || [beatsPerCycle];
+  const beatsPerCycle = tala === 'Custom'
+    ? customTalaGroups.reduce((a, b) => a + b, 0)
+    : getTalaBeats(tala);
+  const structure = tala === 'Custom'
+    ? customTalaGroups
+    : (TALA_STRUCTURE[tala] || [beatsPerCycle]);
 
   const subBounds = structure.slice(0, -1).reduce((acc, s) => {
     acc.push((acc[acc.length - 1] || 0) + s);
     return acc;
   }, []);
 
-  const sectionNames = tala === 'Adi (8)' ? ['Laghu', 'Drutam', 'Drutam']
-    : tala === 'Rupaka (6)' ? ['Drutam', 'Laghu']
-    : tala === 'Misra Chapu (7)' ? ['3', '2', '2']
-    : tala === 'Khanda Chapu (5)' ? ['2', '3']
-    : structure.map(String);
+  const sectionNames = tala === 'Custom'
+    ? structure.map(String)
+    : (TALA_SECTION_NAMES[tala] || structure.map(String));
 
   return (
     <div className="metronome-strip">

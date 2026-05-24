@@ -391,6 +391,19 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .export-btn:hover { color: var(--text); border-color: var(--accent-dim); }
 .export-btn svg { width: 14px; height: 14px; }
 
+.export-menu {
+  position: absolute; bottom: 42px; right: 0; z-index: 40;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; min-width: 180px;
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.35); animation: panelIn 0.12s ease;
+}
+.export-menu button {
+  display: block; width: 100%; padding: 8px 14px; border: none; background: transparent;
+  text-align: left; font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+  color: var(--text-muted); cursor: pointer; transition: all 0.1s;
+}
+.export-menu button:hover { background: var(--accent-glow); color: var(--accent); }
+
 .control-right { display: flex; align-items: center; gap: 10px; min-width: 80px; justify-content: flex-end; }
 
 /* Live swara badge */
@@ -424,6 +437,46 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .tweak-slider-row label { font-size: 11px; color: var(--text-muted); min-width: 78px; }
 .tweak-slider-row input[type="range"] { flex: 1; height: 4px; accent-color: var(--accent); background: var(--border); border-radius: 2px; cursor: pointer; }
 .tweak-slider-row span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); min-width: 32px; text-align: right; }
+
+/* ── STAFF NOTATION ── */
+.staff-notation-wrap { padding: 8px 0; }
+
+/* ── NOTE EDITOR ── */
+.note-editor {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px; z-index: 20;
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
+  animation: panelIn 0.15s ease; min-width: 260px; max-width: 380px;
+}
+.ne-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ne-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.ne-close {
+  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-dim);
+  background: transparent; cursor: pointer; color: var(--text-dim); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ne-close:hover { color: var(--text); border-color: var(--text-muted); }
+.ne-section { margin-bottom: 8px; }
+.ne-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+.ne-swara-grid { display: flex; flex-wrap: wrap; gap: 3px; }
+.ne-swara-btn {
+  padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--bg-raised); cursor: pointer; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 600; color: var(--text-muted); transition: all 0.1s;
+}
+.ne-swara-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+.ne-swara-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+.ne-row { display: flex; align-items: center; gap: 6px; }
+.ne-octave-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); min-width: 20px; text-align: center; }
+.ne-btn {
+  padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-raised); cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 500; color: var(--text-muted); transition: all 0.12s;
+}
+.ne-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.ne-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.ne-actions { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
 
 /* ── COMPOSER GRID ── */
 .composer-grid-wrap {
@@ -530,6 +583,14 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   transition: all 0.15s ease; width: 100%; max-width: 280px; align-self: center;
 }
 .composer-add-btn:hover { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-glow); }
+
+.composer-warning {
+  position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+  background: var(--yellow); color: var(--bg); border-radius: 8px;
+  font-size: 12px; font-weight: 600; z-index: 30;
+  animation: panelIn 0.15s ease; box-shadow: 0 4px 16px oklch(0 0 0 / 0.3);
+}
 
 /* ── SWARA PALETTE ── */
 .swara-palette {

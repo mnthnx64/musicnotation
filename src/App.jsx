@@ -1,11 +1,17 @@
 import { useRef, useCallback, useEffect } from 'react';
 import useStore from './store';
 import { processAudioFile } from './audio/fileProcessor';
-import { yinPitchDetection, calculateRMS, createPitchSmoother, PITCH_CONFIG } from './audio/pitchDetection';
+import { calculateRMS, createPitchSmoother, PITCH_CONFIG } from './audio/pitchDetection';
 import { freqToSwara } from './audio/swaraMapping';
 import { NOTE_FREQUENCIES } from './data/constants';
+import { startPitchWorklet } from './audio/pitchWorklet';
+import { getEngine } from './audio/pitchEngines';
 import { playComposition, stopPlayback } from './audio/composerPlayback';
 import { exportAsText, downloadText, printComposition } from './audio/composerExport';
+import { exportTranscriptionPDF, exportComposerPDF, downloadPDF } from './audio/pdfExport';
+import { captureNotationArea } from './audio/pngExport';
+import { exportAsMidi, downloadMidi } from './audio/midiExport';
+import { exportAsMusicXML, downloadMusicXML } from './audio/musicxmlExport';
 import Header from './components/Header';
 import ConfigStrip from './components/ConfigStrip';
 import ShrutiCalibration from './components/ShrutiCalibration';
@@ -17,6 +23,7 @@ import ControlBar from './components/ControlBar';
 import TweaksPanel from './components/TweaksPanel';
 import ComposerGrid from './components/ComposerGrid';
 import SwaraPalette from './components/SwaraPalette';
+import NoteEditor from './components/NoteEditor';
 
 export default function App() {
   const theme = useStore((s) => s.theme);
@@ -47,6 +54,7 @@ export default function App() {
   const shruti = useStore((s) => s.shruti);
   const raga = useStore((s) => s.raga);
   const tala = useStore((s) => s.tala);
+  const customTalaGroups = useStore((s) => s.customTalaGroups);
   const minStableFrames = useStore((s) => s.minStableFrames);
   const avartanams = useStore((s) => s.avartanams);
   const composerPlaying = useStore((s) => s.composerPlaying);
@@ -67,6 +75,7 @@ export default function App() {
   const liveBufferRef = useRef(null);
   const liveSmoother = useRef(null);
   const liveRafRef = useRef(null);
+  const workletHandleRef = useRef(null);
 
   const themeClass = theme === 'manuscript' ? 'theme-manuscript' : theme === 'minimal' ? 'theme-minimal' : '';
 
@@ -80,12 +89,14 @@ export default function App() {
     const currentShruti = useStore.getState().shruti;
     const currentRaga = useStore.getState().raga;
     const stableFrames = useStore.getState().minStableFrames;
+    const currentEngine = useStore.getState().pitchEngine;
 
     try {
       const results = await processAudioFile(file, {
         shruti: currentShruti,
         raga: currentRaga,
         minStableFrames: stableFrames,
+        pitchEngine: currentEngine,
         onProgress: ({ stage, progress }) => {
           setProcessing(true, progress, stage);
         },
@@ -168,12 +179,43 @@ export default function App() {
   }, [audioSamples, audioSampleRate, isPlaying, setIsPlaying, setPlaybackTime]);
 
   // Export
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback((format = 'txt') => {
     if (swaras.length === 0) return;
 
     const currentShruti = useStore.getState().shruti;
     const currentRaga = useStore.getState().raga;
     const currentTala = useStore.getState().tala;
+    const currentBpm = useStore.getState().bpm;
+    const baseName = (fileName || 'swaras').replace(/\.[^.]+$/, '');
+
+    if (format === 'pdf') {
+      const doc = exportTranscriptionPDF(swaras, {
+        shruti: currentShruti, raga: currentRaga, tala: currentTala,
+        bpm: currentBpm, title: fileName, detectedTonic,
+      });
+      downloadPDF(doc, `${baseName}.pdf`);
+      return;
+    }
+
+    if (format === 'png') {
+      captureNotationArea('.notation-area svg', `${baseName}.png`);
+      return;
+    }
+
+    if (format === 'midi') {
+      const blob = exportAsMidi(swaras, { shruti: currentShruti, bpm: currentBpm, title: fileName });
+      downloadMidi(blob, `${baseName}.mid`);
+      return;
+    }
+
+    if (format === 'musicxml') {
+      const xml = exportAsMusicXML(swaras, {
+        shruti: currentShruti, raga: currentRaga, tala: currentTala,
+        bpm: currentBpm, title: fileName,
+      });
+      downloadMusicXML(xml, `${baseName}.musicxml`);
+      return;
+    }
 
     let text = `EzSwara \u2014 Swara Transcription\n`;
     text += `File: ${fileName || 'Unknown'}\n`;
@@ -185,10 +227,8 @@ export default function App() {
     text += `Tala: ${currentTala}\n`;
     text += `Swaras detected: ${swaras.length}\n`;
     text += `${'\u2500'.repeat(40)}\n\n`;
-
     text += `Swara Sequence:\n`;
     text += swaras.map(s => s.swara).join(' ') + '\n\n';
-
     text += `Time\tSwara\tDuration\tConfidence\n`;
     for (const s of swaras) {
       text += `${s.time.toFixed(2)}s\t${s.swara}\t${s.duration.toFixed(3)}s\t${Math.round(s.confidence * 100)}%\n`;
@@ -198,7 +238,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${(fileName || 'swaras').replace(/\.[^.]+$/, '')}_swaras.txt`;
+    a.download = `${baseName}_swaras.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }, [swaras, fileName, detectedTonic]);
@@ -226,14 +266,19 @@ export default function App() {
 
   // Composer export
   const handleComposerExport = useCallback((format) => {
-    const text = exportAsText(avartanams, { raga, tala, shruti, title: composerTitle, bpm });
+    const name = (composerTitle || 'composition').replace(/[^a-zA-Z0-9]/g, '_');
     if (format === 'print') {
       printComposition();
+    } else if (format === 'pdf') {
+      const doc = exportComposerPDF(avartanams, { raga, tala, shruti, title: composerTitle, bpm });
+      downloadPDF(doc, `${name}.pdf`);
+    } else if (format === 'png') {
+      captureNotationArea('.composer-grid-wrap table', `${name}.png`);
     } else {
-      const name = (composerTitle || 'composition').replace(/[^a-zA-Z0-9]/g, '_');
+      const text = exportAsText(avartanams, { raga, tala, shruti, title: composerTitle, bpm, customTalaGroups });
       downloadText(text, `${name}.txt`);
     }
-  }, [avartanams, raga, tala, shruti, composerTitle, bpm]);
+  }, [avartanams, raga, tala, shruti, composerTitle, bpm, customTalaGroups]);
 
   // Live recording
   useEffect(() => {
@@ -243,6 +288,12 @@ export default function App() {
       let cancelled = false;
       const currentShruti = useStore.getState().shruti;
       const tonicHz = NOTE_FREQUENCIES[currentShruti] || 261.63;
+      const confThreshold = useStore.getState().confidenceThreshold;
+      const noteMinMs = useStore.getState().minNoteMs;
+      const silGapMs = useStore.getState().silenceMs;
+      const engineId = useStore.getState().pitchEngine;
+      const execMode = useStore.getState().pitchExecMode;
+      const engine = getEngine(engineId);
 
       (async () => {
         try {
@@ -258,17 +309,6 @@ export default function App() {
           liveStreamRef.current = stream;
           setMicPermission('granted');
 
-          const source = audioCtxRef.current.createMediaStreamSource(stream);
-          const analyser = audioCtxRef.current.createAnalyser();
-          analyser.fftSize = 4096;
-          analyser.smoothingTimeConstant = 0.5;
-          source.connect(analyser);
-
-          liveAnalyserRef.current = analyser;
-          liveBufferRef.current = new Float32Array(analyser.fftSize);
-          liveSmoother.current = createPitchSmoother();
-
-          const sampleRate = audioCtxRef.current.sampleRate;
           let lastUIUpdate = 0;
           let prevSwara = null;
           let swaraStart = null;
@@ -276,24 +316,10 @@ export default function App() {
           let swaraFreq = 0;
           let swaraCount = 0;
 
-          const detect = () => {
-            liveAnalyserRef.current.getFloatTimeDomainData(liveBufferRef.current);
-            const rms = calculateRMS(liveBufferRef.current);
+          const processPitch = (frequency, conf) => {
             const now = Date.now();
 
-            let frequency = 0;
-            let conf = 0;
-
-            if (rms > PITCH_CONFIG.energyThreshold) {
-              const result = yinPitchDetection(liveBufferRef.current, sampleRate);
-              const smoothed = liveSmoother.current(result.frequency, result.confidence);
-              frequency = smoothed.pitch;
-              conf = smoothed.confidence;
-            } else {
-              liveSmoother.current(0, 0);
-            }
-
-            if (frequency > 0 && conf >= PITCH_CONFIG.minConfidence) {
+            if (frequency > 0 && conf >= confThreshold) {
               const mapped = freqToSwara(frequency, tonicHz);
               if (mapped) {
                 const key = `${mapped.swara}-${mapped.octaveOffset}`;
@@ -302,7 +328,7 @@ export default function App() {
                   swaraFreq += frequency;
                   swaraCount++;
                 } else {
-                  if (prevSwara && swaraStart && swaraCount >= 3) {
+                  if (prevSwara && swaraStart && (now - swaraStart) >= noteMinMs) {
                     const dur = (now - swaraStart) / 1000;
                     const parts = prevSwara.split('-');
                     addSwara({
@@ -329,7 +355,7 @@ export default function App() {
                 }
               }
             } else {
-              if (prevSwara && swaraStart && swaraCount >= 3) {
+              if (prevSwara && swaraStart && (now - swaraStart) >= noteMinMs) {
                 const dur = (now - swaraStart) / 1000;
                 const parts = prevSwara.split('-');
                 addSwara({
@@ -352,11 +378,51 @@ export default function App() {
                 lastUIUpdate = now;
               }
             }
-
-            liveRafRef.current = requestAnimationFrame(detect);
           };
 
-          if (!cancelled) liveRafRef.current = requestAnimationFrame(detect);
+          const useWorklet = execMode === 'auto' || execMode === 'worklet';
+          let workletHandle = null;
+
+          if (useWorklet && engine.workletProcessor) {
+            workletHandle = await startPitchWorklet(audioCtxRef.current, stream, (data) => {
+              processPitch(data.frequency || 0, data.confidence || 0);
+            }, engine);
+          }
+
+          if (workletHandle && !cancelled) {
+            workletHandleRef.current = workletHandle;
+          } else if (execMode === 'worklet') {
+            console.warn(`Worklet forced but unavailable for engine "${engine.id}" — no detection will run.`);
+          } else {
+            const source = audioCtxRef.current.createMediaStreamSource(stream);
+            const analyser = audioCtxRef.current.createAnalyser();
+            analyser.fftSize = 4096;
+            analyser.smoothingTimeConstant = 0.5;
+            source.connect(analyser);
+
+            liveAnalyserRef.current = analyser;
+            liveBufferRef.current = new Float32Array(analyser.fftSize);
+            liveSmoother.current = createPitchSmoother();
+            const sampleRate = audioCtxRef.current.sampleRate;
+
+            const detect = () => {
+              liveAnalyserRef.current.getFloatTimeDomainData(liveBufferRef.current);
+              const rms = calculateRMS(liveBufferRef.current);
+              let frequency = 0, conf = 0;
+              if (rms > PITCH_CONFIG.energyThreshold) {
+                const result = engine.detect(liveBufferRef.current, sampleRate);
+                const smoothed = liveSmoother.current(result.frequency, result.confidence);
+                frequency = smoothed.pitch;
+                conf = smoothed.confidence;
+              } else {
+                liveSmoother.current(0, 0);
+              }
+              processPitch(frequency, conf);
+              liveRafRef.current = requestAnimationFrame(detect);
+            };
+
+            if (!cancelled) liveRafRef.current = requestAnimationFrame(detect);
+          }
         } catch (err) {
           console.error('Mic access failed:', err);
           setMicPermission('denied');
@@ -367,6 +433,10 @@ export default function App() {
       return () => {
         cancelled = true;
         if (liveRafRef.current) cancelAnimationFrame(liveRafRef.current);
+        if (workletHandleRef.current) {
+          workletHandleRef.current.stop();
+          workletHandleRef.current = null;
+        }
         if (liveStreamRef.current) {
           liveStreamRef.current.getTracks().forEach(t => t.stop());
           liveStreamRef.current = null;
@@ -377,6 +447,10 @@ export default function App() {
     }
 
     if (liveRafRef.current) cancelAnimationFrame(liveRafRef.current);
+    if (workletHandleRef.current) {
+      workletHandleRef.current.stop();
+      workletHandleRef.current = null;
+    }
     if (!isRecording && liveStreamRef.current) {
       liveStreamRef.current.getTracks().forEach(t => t.stop());
       liveStreamRef.current = null;
@@ -391,6 +465,26 @@ export default function App() {
       cancelAnimationFrame(rafRef.current);
       if (liveRafRef.current) cancelAnimationFrame(liveRafRef.current);
     };
+  }, []);
+
+  // Undo/Redo keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) useStore.getState().redo();
+        else useStore.getState().undo();
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const idx = useStore.getState().selectedNoteIdx;
+        if (idx >= 0 && document.activeElement === document.body) {
+          e.preventDefault();
+          useStore.getState().deleteSwara(idx);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   const hasResults = swaras.length > 0;
@@ -431,7 +525,7 @@ export default function App() {
             <span className="label">Swaras</span>
             <span className="value">{swaras.length}</span>
           </div>
-          {raga !== 'Free' && (
+          {raga !== 'Custom' && (
             <>
               <div className="info-divider" />
               <div className="info-chip">
@@ -506,6 +600,7 @@ export default function App() {
             <span className="empty-hint">Tap Record to begin live transcription...</span>
           </div>
         )}
+        {inputMode !== 'compose' && hasResults && <NoteEditor />}
       </div>
 
       {/* Swara Palette (compose mode) */}
@@ -524,7 +619,15 @@ export default function App() {
           </button>
           <button className="composer-bar-btn" onClick={() => handleComposerExport('text')}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 10v3h8v-3"/><path d="M8 2v8m-3-3 3 3 3-3"/></svg>
-            Export Text
+            Text
+          </button>
+          <button className="composer-bar-btn" onClick={() => handleComposerExport('pdf')}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="1" width="10" height="14" rx="1"/><path d="M6 5h4M6 8h4M6 11h2"/></svg>
+            PDF
+          </button>
+          <button className="composer-bar-btn" onClick={() => handleComposerExport('png')}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="2" width="14" height="12" rx="1.5"/><circle cx="5" cy="6" r="1.5"/><path d="M1 12l4-4 3 3 2-2 5 5"/></svg>
+            PNG
           </button>
           <button className="composer-bar-btn" onClick={() => handleComposerExport('print')}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="12" height="7" rx="1"/><path d="M4 5V2h8v3"/><path d="M4 9h8v5H4z"/></svg>

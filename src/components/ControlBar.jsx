@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import useStore from '../store';
 
 export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
@@ -14,9 +15,24 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
   const liveSwara = useStore((s) => s.liveSwara);
   const confidence = useStore((s) => s.confidence);
 
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const close = (e) => { if (!exportRef.current?.contains(e.target)) setExportOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [exportOpen]);
+
   const handleRecord = () => {
     if (!isRecording) startRecording();
     else stopRecording();
+  };
+
+  const handleExportFormat = (fmt) => {
+    setExportOpen(false);
+    onExport?.(fmt);
   };
 
   const active = isRecording && !isPaused;
@@ -24,7 +40,6 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
 
   return (
     <div className="control-bar">
-      {/* Left */}
       <div className="control-left">
         <div className={`timer${active ? ' recording' : ''}`}>
           {active && <span className="timer-dot" />}
@@ -36,7 +51,6 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
         </div>
       </div>
 
-      {/* Center */}
       <div className="control-center">
         {inputMode === 'file' && (
           <>
@@ -48,11 +62,7 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
               Upload
             </button>
             {swaras.length > 0 && (
-              <button
-                className="play-btn"
-                onClick={onPlayPause}
-                title={isPlaying ? 'Pause' : 'Play'}
-              >
+              <button className="play-btn" onClick={onPlayPause} title={isPlaying ? 'Pause' : 'Play'}>
                 {isPlaying ? (
                   <svg viewBox="0 0 18 18" fill="currentColor">
                     <rect x="4" y="3" width="3.5" height="12" rx="1" />
@@ -101,7 +111,6 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
         )}
       </div>
 
-      {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 80, justifyContent: 'flex-end' }}>
         {active && (
           <div className="live-note-badge">
@@ -116,12 +125,24 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
           </div>
         )}
         {swaras.length > 0 && !active && (
-          <button className="export-btn" onClick={onExport}>
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M7 1v8M4 6l3 3 3-3M2 10v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2" />
-            </svg>
-            Export
-          </button>
+          <div ref={exportRef} style={{ position: 'relative' }}>
+            <button className="export-btn" onClick={() => setExportOpen(!exportOpen)}>
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M7 1v8M4 6l3 3 3-3M2 10v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2" />
+              </svg>
+              Export
+              <span style={{ fontSize: 8, marginLeft: 2 }}>{'\u25BE'}</span>
+            </button>
+            {exportOpen && (
+              <div className="export-menu">
+                <button onClick={() => handleExportFormat('txt')}>Plain Text (.txt)</button>
+                <button onClick={() => handleExportFormat('pdf')}>PDF Document (.pdf)</button>
+                <button onClick={() => handleExportFormat('png')}>Image (.png)</button>
+                <button onClick={() => handleExportFormat('midi')}>MIDI (.mid)</button>
+                <button onClick={() => handleExportFormat('musicxml')}>MusicXML (.musicxml)</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

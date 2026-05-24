@@ -1,4 +1,5 @@
 import useStore from '../store';
+import { ENGINES } from '../audio/pitchEngines';
 
 export default function TweaksPanel() {
   const tweaksOpen = useStore((s) => s.tweaksOpen);
@@ -19,6 +20,10 @@ export default function TweaksPanel() {
   const setMinNoteMs = useStore((s) => s.setMinNoteMs);
   const silenceMs = useStore((s) => s.silenceMs);
   const setSilenceMs = useStore((s) => s.setSilenceMs);
+  const pitchEngine = useStore((s) => s.pitchEngine);
+  const setPitchEngine = useStore((s) => s.setPitchEngine);
+  const pitchExecMode = useStore((s) => s.pitchExecMode);
+  const setPitchExecMode = useStore((s) => s.setPitchExecMode);
 
   if (!tweaksOpen) return null;
 
@@ -57,7 +62,7 @@ export default function TweaksPanel() {
           </div>
         </div>
 
-        {tala !== 'Alapana (Free)' && (
+        {tala !== 'Alapana (Unmetered)' && (
           <div className="tweak-group">
             <div className="tweak-group-label">Tempo</div>
             <div className="tweak-slider-row">
@@ -82,6 +87,33 @@ export default function TweaksPanel() {
             <input type="range" min={0.1} max={0.8} step={0.05} value={confidenceThreshold}
               onChange={(e) => setConfidenceThreshold(+e.target.value)} />
             <span>{Math.round(confidenceThreshold * 100)}%</span>
+          </div>
+        </div>
+
+        <div className="tweak-group">
+          <div className="tweak-group-label">Detection Engine</div>
+          <div className="tweak-options">
+            {ENGINES.map(e => (
+              <button
+                key={e.id}
+                className={`tweak-opt${pitchEngine === e.id ? ' active' : ''}`}
+                onClick={() => setPitchEngine(e.id)}
+                title={e.description}
+              >
+                {e.name}
+              </button>
+            ))}
+          </div>
+          <div className="tweak-options" style={{ marginTop: 6 }}>
+            {[['auto', 'Auto'], ['worklet', 'Worklet'], ['main-thread', 'Main Thread']].map(([v, l]) => (
+              <button
+                key={v}
+                className={`tweak-opt${pitchExecMode === v ? ' active' : ''}`}
+                onClick={() => setPitchExecMode(v)}
+              >
+                {l}
+              </button>
+            ))}
           </div>
         </div>
 

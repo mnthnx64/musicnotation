@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import useStore from '../store';
 import { TALA_STRUCTURE, getTalaBeats, RAGA_SWARAS, resolveShortcut } from '../data/constants';
 
@@ -10,6 +10,7 @@ export default function ComposerGrid() {
   const composerSpeed = useStore((s) => s.composerSpeed);
   const composerPlaying = useStore((s) => s.composerPlaying);
   const composerPlayPos = useStore((s) => s.composerPlayPos);
+  const customTalaGroups = useStore((s) => s.customTalaGroups);
   const setSelectedCell = useStore((s) => s.setSelectedCell);
   const setCellSwara = useStore((s) => s.setCellSwara);
   const setCellOctave = useStore((s) => s.setCellOctave);
@@ -19,10 +20,22 @@ export default function ComposerGrid() {
   const removeAvartanam = useStore((s) => s.removeAvartanam);
   const initComposerGrid = useStore((s) => s.initComposerGrid);
   const containerRef = useRef(null);
+  const [warning, setWarning] = useState(null);
+  const warningTimer = useRef(null);
 
-  const activeTala = tala === 'Alapana (Free)' ? 'Adi (8)' : tala;
-  const beats = getTalaBeats(activeTala);
-  const structure = TALA_STRUCTURE[activeTala] || [beats];
+  const showWarning = useCallback((msg) => {
+    setWarning(msg);
+    clearTimeout(warningTimer.current);
+    warningTimer.current = setTimeout(() => setWarning(null), 3000);
+  }, []);
+
+  const activeTala = tala === 'Alapana (Unmetered)' ? 'Adi (8)' : tala;
+  const beats = activeTala === 'Custom'
+    ? customTalaGroups.reduce((a, b) => a + b, 0)
+    : getTalaBeats(activeTala);
+  const structure = activeTala === 'Custom'
+    ? customTalaGroups
+    : (TALA_STRUCTURE[activeTala] || [beats]);
   const sectionBounds = structure.reduce((acc, s, i) => {
     if (i < structure.length - 1) acc.push((acc[acc.length - 1] || 0) + s);
     return acc;
@@ -88,10 +101,12 @@ export default function ComposerGrid() {
       e.preventDefault();
       const swara = resolveShortcut(key.toLowerCase(), raga);
       if (swara) {
+        if (raga !== 'Custom' && !ragaSwaras.includes(swara) && swara !== 'Sa' && swara !== 'Pa') {
+          showWarning(`${swara} is not in ${raga} \u2014 anya swara?`);
+        }
         const speed = composerSpeed;
         if (speed > 1) setCellSpeed(row, col, speed);
         setCellSwara(row, col, sub, swara, 0);
-        // Advance: within cell subs first, then next cell
         const cell = avartanams[row]?.[col];
         const maxSub = speed - 1;
         if (sub < maxSub) {
@@ -110,7 +125,7 @@ export default function ComposerGrid() {
     el.focus();
   }, []);
 
-  const ragaSwaras = RAGA_SWARAS[raga] || RAGA_SWARAS.Free;
+  const ragaSwaras = RAGA_SWARAS[raga] || RAGA_SWARAS.Custom;
   const composerTitle = useStore((s) => s.composerTitle);
   const setComposerTitle = useStore((s) => s.setComposerTitle);
 
@@ -217,6 +232,14 @@ export default function ComposerGrid() {
       <button className="composer-add-btn" onClick={addAvartanam}>
         + Add Avartanam
       </button>
+      {warning && (
+        <div className="composer-warning">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="6" cy="6" r="5" /><line x1="6" y1="3.5" x2="6" y2="6.5" /><circle cx="6" cy="8.5" r="0.5" fill="currentColor" />
+          </svg>
+          {warning}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,13 @@
 import { TALA_STRUCTURE, getTalaBeats, TALA_SECTION_NAMES } from '../data/constants';
 
-export function exportAsText(avartanams, { raga, tala, shruti, title, bpm } = {}) {
-  const activeTala = tala === 'Alapana (Free)' ? 'Adi (8)' : tala;
-  const beats = getTalaBeats(activeTala);
-  const structure = TALA_STRUCTURE[activeTala] || [beats];
+export function exportAsText(avartanams, { raga, tala, shruti, title, bpm, customTalaGroups } = {}) {
+  const activeTala = tala === 'Alapana (Unmetered)' ? 'Adi (8)' : tala;
+  const beats = activeTala === 'Custom' && customTalaGroups
+    ? customTalaGroups.reduce((a, b) => a + b, 0)
+    : getTalaBeats(activeTala);
+  const structure = activeTala === 'Custom' && customTalaGroups
+    ? customTalaGroups
+    : (TALA_STRUCTURE[activeTala] || [beats]);
   const lines = [];
 
   if (title) lines.push(title, '');

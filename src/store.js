@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const useStore = create((set, get) => ({
   // Input mode
-  inputMode: 'file', // 'file' | 'live' | 'compose'
+  inputMode: 'live', // 'file' | 'live' | 'compose'
   setInputMode: (m) => set({ inputMode: m }),
 
   // Notation display mode
@@ -18,10 +18,12 @@ const useStore = create((set, get) => ({
   setShruti: (shruti) => set({ shruti }),
   shrutiAutoDetected: false,
   setShrutiAutoDetected: (v) => set({ shrutiAutoDetected: v }),
-  raga: 'Free',
+  raga: 'Custom',
   setRaga: (raga) => set({ raga }),
-  tala: 'Alapana (Free)',
+  tala: 'Alapana (Unmetered)',
   setTala: (tala) => set({ tala }),
+  customTalaGroups: [4, 4],
+  setCustomTalaGroups: (g) => set({ customTalaGroups: g }),
 
   // Shruti calibration
   showCalibrate: false,
@@ -104,7 +106,54 @@ const useStore = create((set, get) => ({
   incrementElapsed: () => set((s) => ({ elapsed: s.elapsed + 1 })),
   setConfidence: (confidence) => set({ confidence }),
   setLiveSwara: (s) => set({ liveSwara: s }),
-  addSwara: (swara) => set((s) => ({ swaras: [...s.swaras, swara] })),
+  addSwara: (swara) => set((s) => {
+    const next = [...s.swaras, swara];
+    return { swaras: next, _swaraHistory: [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? -1) + 1), next], _swaraHistoryIdx: ((s._swaraHistoryIdx ?? -1) + 1) };
+  }),
+
+  // Note editing
+  selectedNoteIdx: -1,
+  setSelectedNoteIdx: (idx) => set({ selectedNoteIdx: idx }),
+
+  updateSwara: (idx, patch) => set((s) => {
+    const next = s.swaras.map((sw, i) => i === idx ? { ...sw, ...patch } : sw);
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  deleteSwara: (idx) => set((s) => {
+    const next = s.swaras.filter((_, i) => i !== idx);
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, selectedNoteIdx: -1, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  insertSwara: (idx, swara) => set((s) => {
+    const next = [...s.swaras.slice(0, idx), swara, ...s.swaras.slice(idx)];
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, selectedNoteIdx: idx, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
+  // Undo / Redo
+  _swaraHistory: [],
+  _swaraHistoryIdx: -1,
+
+  undo: () => set((s) => {
+    const idx = (s._swaraHistoryIdx ?? 0) - 1;
+    if (idx < 0 || !s._swaraHistory?.[idx]) return {};
+    return { swaras: s._swaraHistory[idx], _swaraHistoryIdx: idx, selectedNoteIdx: -1 };
+  }),
+
+  redo: () => set((s) => {
+    const idx = (s._swaraHistoryIdx ?? 0) + 1;
+    if (!s._swaraHistory?.[idx]) return {};
+    return { swaras: s._swaraHistory[idx], _swaraHistoryIdx: idx, selectedNoteIdx: -1 };
+  }),
+
+  // Pitch engine
+  pitchEngine: 'yin',
+  setPitchEngine: (id) => set({ pitchEngine: id }),
+  pitchExecMode: 'auto',  // 'auto' | 'worklet' | 'main-thread'
+  setPitchExecMode: (m) => set({ pitchExecMode: m }),
 
   // Tweaks
   tweaksOpen: false,

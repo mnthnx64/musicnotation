@@ -1,14 +1,20 @@
 export const SHRUTI_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-export const TALAS = ['Alapana (Free)', 'Adi (8)', 'Rupaka (6)', 'Misra Chapu (7)', 'Khanda Chapu (5)'];
+export const TALAS = ['Alapana (Unmetered)', 'Adi (8)', 'Rupaka (6)', 'Misra Chapu (7)', 'Khanda Chapu (5)', 'Dhruva (14)', 'Matya (10)', 'Jhampa (10)', 'Ata (14)', 'Eka (4)', 'Triputa (7)', 'Custom'];
 
-export const RAGAS = ['Free', 'Mohanam', 'Kalyani', 'Bhairavi', 'Shankarabharanam', 'Kharaharapriya'];
+export const RAGAS = ['Custom', 'Mohanam', 'Kalyani', 'Bhairavi', 'Shankarabharanam', 'Kharaharapriya'];
 
 export const TALA_STRUCTURE = {
   'Adi (8)':          [4, 2, 2],
   'Rupaka (6)':       [2, 4],
   'Misra Chapu (7)':  [3, 2, 2],
   'Khanda Chapu (5)': [2, 3],
+  'Dhruva (14)':      [4, 2, 4, 4],
+  'Matya (10)':       [4, 2, 4],
+  'Jhampa (10)':      [7, 1, 2],
+  'Ata (14)':         [5, 5, 2, 2],
+  'Eka (4)':          [4],
+  'Triputa (7)':      [3, 2, 2],
 };
 
 export const NOTE_FREQUENCIES = {
@@ -18,7 +24,7 @@ export const NOTE_FREQUENCIES = {
 };
 
 export const RAGA_SEMITONES = {
-  Free:              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  Custom:            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   Mohanam:           [0, 2, 4, 7, 9],
   Kalyani:           [0, 2, 4, 6, 7, 9, 11],
   Bhairavi:          [0, 1, 3, 5, 7, 8, 10],
@@ -28,7 +34,7 @@ export const RAGA_SEMITONES = {
 
 // Swaras available per raga (for composer palette)
 export const RAGA_SWARAS = {
-  Free:              ['Sa', 'Ri\u2081', 'Ri\u2082', 'Ga\u2082', 'Ga\u2083', 'Ma\u2081', 'Ma\u2082', 'Pa', 'Da\u2081', 'Da\u2082', 'Ni\u2082', 'Ni\u2083'],
+  Custom:            ['Sa', 'Ri\u2081', 'Ri\u2082', 'Ga\u2082', 'Ga\u2083', 'Ma\u2081', 'Ma\u2082', 'Pa', 'Da\u2081', 'Da\u2082', 'Ni\u2082', 'Ni\u2083'],
   Mohanam:           ['Sa', 'Ri\u2082', 'Ga\u2083', 'Pa', 'Da\u2082'],
   Kalyani:           ['Sa', 'Ri\u2082', 'Ga\u2083', 'Ma\u2082', 'Pa', 'Da\u2082', 'Ni\u2083'],
   Bhairavi:          ['Sa', 'Ri\u2081', 'Ga\u2082', 'Ma\u2081', 'Pa', 'Da\u2081', 'Ni\u2082'],
@@ -48,7 +54,7 @@ export const SWARA_FREQ_RATIOS = {
 
 // Resolve a shortcut letter to the correct swara variant for a raga
 export function resolveShortcut(key, ragaName) {
-  const swaras = RAGA_SWARAS[ragaName] || RAGA_SWARAS.Free;
+  const swaras = RAGA_SWARAS[ragaName] || RAGA_SWARAS.Custom;
   const prefix = SWARA_SHORTCUTS[key];
   if (!prefix) return null;
   if (prefix === 'Sa' || prefix === 'Pa') return prefix;
@@ -61,6 +67,12 @@ export const TALA_SECTION_NAMES = {
   'Rupaka (6)':       ['Drutam', 'Laghu'],
   'Misra Chapu (7)':  ['3', '2', '2'],
   'Khanda Chapu (5)': ['2', '3'],
+  'Dhruva (14)':      ['Laghu', 'Drutam', 'Laghu', 'Laghu'],
+  'Matya (10)':       ['Laghu', 'Drutam', 'Laghu'],
+  'Jhampa (10)':      ['Laghu', 'Anudr.', 'Drutam'],
+  'Ata (14)':         ['Laghu', 'Laghu', 'Drutam', 'Drutam'],
+  'Eka (4)':          ['Laghu'],
+  'Triputa (7)':      ['Laghu', 'Drutam', 'Drutam'],
 };
 
 export const BEAT_W    = 68;
@@ -71,7 +83,8 @@ export const STAFF_TOP_PAD  = 16;
 export const ALAP_NOTE_BASE_W = 72;
 export const ALAP_PAD = 6;
 
-export function getTalaBeats(tala) {
+export function getTalaBeats(tala, customGroups) {
+  if (tala === 'Custom' && customGroups) return customGroups.reduce((a, b) => a + b, 0);
   return (TALA_STRUCTURE[tala] || [8]).reduce((a, b) => a + b, 0);
 }
 

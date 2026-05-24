@@ -1,5 +1,6 @@
-import { yinPitchDetection, calculateRMS, PITCH_CONFIG } from './pitchDetection';
+import { calculateRMS, PITCH_CONFIG } from './pitchDetection';
 import { freqToSwara, detectTonic, filterStableSwaras } from './swaraMapping';
+import { getEngine } from './pitchEngines';
 
 const FRAME_SIZE = 2048;
 const HOP_SIZE = 512;
@@ -9,17 +10,21 @@ const TARGET_SR = 16000;
  * @param {File} file
  * @param {object} opts
  * @param {string|null} opts.shruti - Manual shruti note name (e.g. 'C#'). null = auto-detect.
- * @param {string} opts.raga - Raga name for snapping (e.g. 'Mohanam'). 'Free' = no snapping.
+ * @param {string} opts.raga - Raga name for snapping (e.g. 'Mohanam'). 'Custom' = no snapping.
  * @param {number} opts.minStableFrames - Min consecutive frames to keep a swara.
+ * @param {string} [opts.pitchEngine] - Engine id from the registry (default: 'yin').
  * @param {function} opts.onProgress
  */
 export async function processAudioFile(file, opts = {}) {
   const {
     shruti = null,
-    raga = 'Free',
+    raga = 'Custom',
     minStableFrames = 3,
+    pitchEngine: engineId = 'yin',
     onProgress,
   } = opts;
+
+  const engine = getEngine(engineId);
 
   // Shruti -> Hz lookup
   const NOTE_FREQ = {
@@ -30,7 +35,7 @@ export async function processAudioFile(file, opts = {}) {
 
   // Raga semitone sets for snapping
   const RAGA_SEMITONES = {
-    Free:              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    Custom:            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
     Mohanam:           [0, 2, 4, 7, 9],
     Kalyani:           [0, 2, 4, 6, 7, 9, 11],
     Bhairavi:          [0, 1, 3, 5, 7, 8, 10],
@@ -75,7 +80,7 @@ export async function processAudioFile(file, opts = {}) {
     const frameDuration = HOP_SIZE / sampleRate;
 
     if (rms > PITCH_CONFIG.energyThreshold) {
-      const { frequency, confidence } = yinPitchDetection(frame, sampleRate);
+      const { frequency, confidence } = engine.detect(frame, sampleRate);
       if (frequency > 0 && confidence >= PITCH_CONFIG.minConfidence) {
         pitchFrames.push({ time, frequency, confidence, frameDuration });
         allFrequencies.push(frequency);
@@ -115,7 +120,7 @@ export async function processAudioFile(file, opts = {}) {
   await yieldToMain();
 
   // Map each pitch frame to a swara (with optional raga snapping)
-  const allowedSemitones = RAGA_SEMITONES[raga] || RAGA_SEMITONES.Free;
+  const allowedSemitones = RAGA_SEMITONES[raga] || RAGA_SEMITONES.Custom;
   const rawSwaras = [];
 
   for (const frame of pitchFrames) {
@@ -124,7 +129,7 @@ export async function processAudioFile(file, opts = {}) {
       let { semitone } = result;
 
       // Raga snapping
-      if (raga !== 'Free' && !allowedSemitones.includes(semitone)) {
+      if (raga !== 'Custom' && !allowedSemitones.includes(semitone)) {
         let best = allowedSemitones[0];
         let bestDist = 12;
         for (const s of allowedSemitones) {

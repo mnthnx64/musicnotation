@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useStore from '../store';
 import { RAGAS, TALAS } from '../data/constants';
 
@@ -8,10 +9,20 @@ export default function ConfigStrip() {
   const setRaga = useStore((s) => s.setRaga);
   const tala = useStore((s) => s.tala);
   const setTala = useStore((s) => s.setTala);
+  const customTalaGroups = useStore((s) => s.customTalaGroups);
+  const setCustomTalaGroups = useStore((s) => s.setCustomTalaGroups);
   const showCalibrate = useStore((s) => s.showCalibrate);
   const toggleCalibrate = useStore((s) => s.toggleCalibrate);
   const swaras = useStore((s) => s.swaras);
   const clearResults = useStore((s) => s.clearResults);
+
+  const [customInput, setCustomInput] = useState(customTalaGroups.join('+'));
+
+  const handleCustomInput = (val) => {
+    setCustomInput(val);
+    const parts = val.split('+').map(s => parseInt(s.trim(), 10)).filter(n => n > 0 && !isNaN(n));
+    if (parts.length > 0) setCustomTalaGroups(parts);
+  };
 
   return (
     <div className="config-strip">
@@ -57,6 +68,15 @@ export default function ConfigStrip() {
         </select>
         <span className="config-select-arrow">{'\u25BE'}</span>
       </div>
+      {tala === 'Custom' && (
+        <input
+          className="config-custom-tala-input"
+          placeholder="3+4+2"
+          value={customInput}
+          onChange={(e) => handleCustomInput(e.target.value)}
+          style={{ width: 72, marginLeft: 4, fontSize: 12, padding: '2px 6px' }}
+        />
+      )}
 
       {swaras.length > 0 && (
         <button className="config-chip" style={{ color: 'var(--text-dim)' }} onClick={clearResults}>

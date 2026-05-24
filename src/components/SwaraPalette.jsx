@@ -13,7 +13,7 @@ export default function SwaraPalette() {
   const setSelectedCell = useStore((s) => s.setSelectedCell);
   const setComposerSpeed = useStore((s) => s.setComposerSpeed);
 
-  const swaras = RAGA_SWARAS[raga] || RAGA_SWARAS.Free;
+  const swaras = RAGA_SWARAS[raga] || RAGA_SWARAS.Custom;
   const { row, col, sub } = selectedCell;
   const beats = avartanams[0]?.length || 8;
 
