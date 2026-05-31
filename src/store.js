@@ -1,4 +1,24 @@
 import { create } from 'zustand';
+import { SWARA_NAMES_BY_SEMITONE } from './data/constants';
+
+const CUSTOM_SCALES_KEY = 'ezswara-custom-scales';
+
+function loadCustomScales() {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_SCALES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function persistCustomScales(scales) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(CUSTOM_SCALES_KEY, JSON.stringify(scales));
+  } catch (_) { /* ignore quota errors */ }
+}
 
 const useStore = create((set, get) => ({
   // Input mode
@@ -20,15 +40,77 @@ const useStore = create((set, get) => ({
   setShrutiAutoDetected: (v) => set({ shrutiAutoDetected: v }),
   raga: 'Custom',
   setRaga: (raga) => set({ raga }),
+
+  // Allow intentionally entering swaras outside the selected raga (anya swara)
+  anyaSwaraMode: false,
+  setAnyaSwaraMode: (v) => set({ anyaSwaraMode: v }),
+  toggleAnyaSwaraMode: () => set((s) => ({ anyaSwaraMode: !s.anyaSwaraMode })),
+
+  // User-defined custom scales: { id, name, semitones:number[], swaras:string[] }
+  customScales: loadCustomScales(),
+  addCustomScale: ({ name, semitones }) => {
+    const sorted = [...new Set(semitones)].sort((a, b) => a - b);
+    const swaras = sorted.map((st) => SWARA_NAMES_BY_SEMITONE[st]);
+    const scale = { id: `cs-${Date.now()}`, name, semitones: sorted, swaras };
+    set((s) => {
+      const next = [...s.customScales.filter(c => c.name !== name), scale];
+      persistCustomScales(next);
+      return { customScales: next, raga: name };
+    });
+    return scale;
+  },
+  updateCustomScale: (id, patch) => set((s) => {
+    const next = s.customScales.map((c) => {
+      if (c.id !== id) return c;
+      const merged = { ...c, ...patch };
+      if (patch.semitones) {
+        const sorted = [...new Set(patch.semitones)].sort((a, b) => a - b);
+        merged.semitones = sorted;
+        merged.swaras = sorted.map((st) => SWARA_NAMES_BY_SEMITONE[st]);
+      }
+      return merged;
+    });
+    persistCustomScales(next);
+    return { customScales: next };
+  }),
+  deleteCustomScale: (id) => set((s) => {
+    const removed = s.customScales.find(c => c.id === id);
+    const next = s.customScales.filter((c) => c.id !== id);
+    persistCustomScales(next);
+    const raga = removed && s.raga === removed.name ? 'Custom' : s.raga;
+    return { customScales: next, raga };
+  }),
+
+  // Scale-builder modal
+  showScaleBuilder: false,
+  toggleScaleBuilder: () => set((s) => ({ showScaleBuilder: !s.showScaleBuilder })),
+
+  // Uploaded-audio: align detected swaras to the tala grid (opt-in). When off,
+  // uploaded notes are shown free (unmetered), never force-fit into a cycle.
+  beatAlignEnabled: false,
+  setBeatAlignEnabled: (v) => {
+    const state = get();
+    const isMetered = v && state.tala !== 'Alapana (Unmetered)';
+    const beatDurSec = isMetered ? 60 / state.bpm : 0;
+    const swaras = state.swaras.map((s) => {
+      if (isMetered) return { ...s, beat: Math.round(s.time / beatDurSec) };
+      const { beat, ...rest } = s;
+      return rest;
+    });
+    set({ beatAlignEnabled: v, swaras });
+  },
   tala: 'Alapana (Unmetered)',
   setTala: (tala) => {
     const state = get();
-    const isMetered = tala !== 'Alapana (Unmetered)';
-    const beatDurSec = isMetered ? 60 / state.bpm : 0;
-    const swaras = state.swaras.length > 0 && isMetered
-      ? state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
-      : isMetered ? state.swaras : state.swaras.map(s => { const { beat, ...rest } = s; return rest; });
-    set({ tala, swaras });
+    // Only re-map uploaded swaras onto beats when the user has explicitly opted
+    // into tala alignment; otherwise leave them as free notes.
+    if (state.beatAlignEnabled && tala !== 'Alapana (Unmetered)') {
+      const beatDurSec = 60 / state.bpm;
+      const swaras = state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }));
+      set({ tala, swaras });
+    } else {
+      set({ tala });
+    }
   },
   customTalaGroups: [4, 4],
   setCustomTalaGroups: (g) => set({ customTalaGroups: g }),
@@ -46,12 +128,13 @@ const useStore = create((set, get) => ({
   bpm: 72,
   setBpm: (bpm) => {
     const state = get();
-    const isMetered = state.tala !== 'Alapana (Unmetered)';
-    const beatDurSec = isMetered ? 60 / bpm : 0;
-    const swaras = state.swaras.length > 0 && isMetered
-      ? state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
-      : state.swaras;
-    set({ bpm, swaras });
+    if (state.beatAlignEnabled && state.tala !== 'Alapana (Unmetered)') {
+      const beatDurSec = 60 / bpm;
+      const swaras = state.swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }));
+      set({ bpm, swaras });
+    } else {
+      set({ bpm });
+    }
   },
 
   // File state
@@ -74,9 +157,10 @@ const useStore = create((set, get) => ({
 
   setResults: ({ tonic, swaras, pitchData, duration, sampleRate, samples, fileName }) => {
     const state = get();
-    const isMetered = state.tala !== 'Alapana (Unmetered)';
-    const beatDurSec = isMetered ? 60 / state.bpm : 0;
-    const quantized = isMetered
+    // Uploaded audio is shown as free notes unless tala alignment is opted in.
+    const align = state.beatAlignEnabled && state.tala !== 'Alapana (Unmetered)';
+    const beatDurSec = align ? 60 / state.bpm : 0;
+    const quantized = align
       ? swaras.map(s => ({ ...s, beat: Math.round(s.time / beatDurSec) }))
       : swaras;
     set({
@@ -218,6 +302,18 @@ const useStore = create((set, get) => ({
     return { swaras: next, selectedNoteIdx: idx, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
   }),
 
+  // Shift every beat-aligned swara by `delta` beats (drag-to-set-sama). Clamped
+  // at 0 and recorded in history so it can be undone.
+  shiftBeats: (delta) => set((s) => {
+    if (!delta) return {};
+    const minBeat = Math.min(...s.swaras.map(sw => sw.beat ?? 0));
+    const applied = Math.max(delta, -minBeat);
+    if (!applied) return {};
+    const next = s.swaras.map(sw => sw.beat === undefined ? sw : { ...sw, beat: sw.beat + applied });
+    const hist = [...(s._swaraHistory || []).slice(0, (s._swaraHistoryIdx ?? 0) + 1), next];
+    return { swaras: next, _swaraHistory: hist, _swaraHistoryIdx: hist.length - 1 };
+  }),
+
   // Undo / Redo
   _swaraHistory: [],
   _swaraHistoryIdx: -1,
@@ -335,6 +431,33 @@ const useStore = create((set, get) => ({
     return { avartanams: av };
   }),
 
+  // Atomic swara entry at the current selection. Reads live state (selectedCell,
+  // composerSpeed) so it cannot lose subdivisions to stale render closures — this
+  // is what makes 2x/3x/4x reliably fill exactly N subdivisions.
+  inputSwaraAtSelection: (swara, octave = 0) => set((s) => {
+    const { row, col, sub } = s.selectedCell;
+    const speed = s.composerSpeed;
+    const beats = s.avartanams[0]?.length || 8;
+    const av = s.avartanams.map(r => r.map(c => [...c]));
+    if (!av[row]?.[col]) return {};
+    const cell = av[row][col];
+    while (cell.length < speed) cell.push({ swara: '', octave: 0 });
+    if (cell.length > speed) cell.length = speed;
+    const targetSub = Math.min(sub, speed - 1);
+    cell[targetSub] = { swara, octave };
+
+    let nextSel;
+    if (targetSub < speed - 1) {
+      nextSel = { row, col, sub: targetSub + 1 };
+    } else {
+      let nc = col + 1;
+      let nr = row;
+      if (nc >= beats) { nc = 0; nr = Math.min(nr + 1, av.length - 1); }
+      nextSel = { row: nr, col: nc, sub: 0 };
+    }
+    return { avartanams: av, selectedCell: nextSel };
+  }),
+
   clearCell: (row, col) => set((s) => {
     const av = s.avartanams.map(r => r.map(c => [...c]));
     if (!av[row]?.[col]) return {};
@@ -353,6 +476,9 @@ const useStore = create((set, get) => ({
   composerPlayPos: { row: 0, col: 0 },
   setComposerPlaying: (v) => set({ composerPlaying: v }),
   setComposerPlayPos: (p) => set({ composerPlayPos: p }),
+  // Play a synced metronome click track alongside the composition
+  composerMetronome: false,
+  toggleComposerMetronome: () => set((s) => ({ composerMetronome: !s.composerMetronome })),
 }));
 
 export default useStore;

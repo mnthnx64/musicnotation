@@ -3,7 +3,7 @@ import useStore from './store';
 import { processAudioFile } from './audio/fileProcessor';
 import { calculateRMS, createPitchSmoother, PITCH_CONFIG } from './audio/pitchDetection';
 import { freqToSwara } from './audio/swaraMapping';
-import { NOTE_FREQUENCIES } from './data/constants';
+import { NOTE_FREQUENCIES, TALA_STRUCTURE, getTalaBeats, getRagaSemitones } from './data/constants';
 import { startPitchWorklet } from './audio/pitchWorklet';
 import { getEngine } from './audio/pitchEngines';
 import { playComposition, stopPlayback } from './audio/composerPlayback';
@@ -24,6 +24,7 @@ import TweaksPanel from './components/TweaksPanel';
 import HelpFAQ from './components/HelpFAQ';
 import ComposerGrid from './components/ComposerGrid';
 import SwaraPalette from './components/SwaraPalette';
+import ScaleBuilder from './components/ScaleBuilder';
 import NoteEditor from './components/NoteEditor';
 import MobileNav from './components/MobileNav';
 
@@ -53,13 +54,17 @@ export default function App() {
   const setMicPermission = useStore((s) => s.setMicPermission);
   const stopRecording = useStore((s) => s.stopRecording);
   const showCalibrate = useStore((s) => s.showCalibrate);
+  const showScaleBuilder = useStore((s) => s.showScaleBuilder);
   const shruti = useStore((s) => s.shruti);
   const raga = useStore((s) => s.raga);
   const tala = useStore((s) => s.tala);
+  const beatAlignEnabled = useStore((s) => s.beatAlignEnabled);
+  const setBeatAlignEnabled = useStore((s) => s.setBeatAlignEnabled);
   const customTalaGroups = useStore((s) => s.customTalaGroups);
   const minStableFrames = useStore((s) => s.minStableFrames);
   const avartanams = useStore((s) => s.avartanams);
   const composerPlaying = useStore((s) => s.composerPlaying);
+  const composerMetronome = useStore((s) => s.composerMetronome);
   const composerTitle = useStore((s) => s.composerTitle);
   const bpm = useStore((s) => s.bpm);
   const onboardingSeen = useStore((s) => s.onboardingSeen);
@@ -95,6 +100,7 @@ export default function App() {
     const currentRaga = useStore.getState().raga;
     const stableFrames = useStore.getState().minStableFrames;
     const currentEngine = useStore.getState().pitchEngine;
+    const currentCustomScales = useStore.getState().customScales;
 
     try {
       const results = await processAudioFile(file, {
@@ -102,6 +108,7 @@ export default function App() {
         raga: currentRaga,
         minStableFrames: stableFrames,
         pitchEngine: currentEngine,
+        allowedSemitones: getRagaSemitones(currentRaga, currentCustomScales),
         onProgress: ({ stage, progress }) => {
           setProcessing(true, progress, stage);
         },
@@ -260,6 +267,15 @@ export default function App() {
       useStore.setState({ composerPlaying: false, composerPlayPos: { row: 0, col: 0 } });
       return;
     }
+    const st = useStore.getState();
+    const activeTala = st.tala === 'Alapana (Unmetered)' ? 'Adi (8)' : st.tala;
+    const beatsPerCycle = activeTala === 'Custom'
+      ? st.customTalaGroups.reduce((a, b) => a + b, 0)
+      : getTalaBeats(activeTala);
+    const structure = activeTala === 'Custom'
+      ? st.customTalaGroups
+      : (TALA_STRUCTURE[activeTala] || [beatsPerCycle]);
+
     useStore.setState({ composerPlaying: true });
     playComposition(
       avartanams,
@@ -267,6 +283,7 @@ export default function App() {
       shruti,
       (pos) => useStore.setState({ composerPlayPos: pos }),
       () => useStore.setState({ composerPlaying: false, composerPlayPos: { row: 0, col: 0 } }),
+      { withMetronome: st.composerMetronome, beatsPerCycle, structure },
     );
   }, [composerPlaying, avartanams, bpm, shruti]);
 
@@ -564,6 +581,22 @@ export default function App() {
               </div>
             </>
           )}
+          {tala !== 'Alapana (Unmetered)' && (
+            <>
+              <div className="info-divider" />
+              <button
+                className={`config-chip${beatAlignEnabled ? ' active' : ''}`}
+                style={{ fontSize: 11 }}
+                onClick={() => setBeatAlignEnabled(!beatAlignEnabled)}
+                title="Align these notes to the tala grid. Off = free notes (no tala)."
+              >
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 11, height: 11 }}>
+                  <path d="M2 2v8M5 2v8M8 2v8M11 2v8" />
+                </svg>
+                {beatAlignEnabled ? 'Aligned to tala' : 'Align to tala'}
+              </button>
+            </>
+          )}
           {fileName && (
             <>
               <div className="info-divider" />
@@ -660,6 +693,14 @@ export default function App() {
             )}
             {composerPlaying ? 'Stop' : 'Play'}
           </button>
+          <button
+            className={`composer-bar-btn${composerMetronome ? ' active' : ''}`}
+            onClick={() => useStore.getState().toggleComposerMetronome()}
+            title="Play a metronome click track in sync with the composition"
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 14h6l-1.5-9h-3z"/><path d="M8 11l3-7"/><path d="M4 14h8"/></svg>
+            Click
+          </button>
           <button className="composer-bar-btn" onClick={() => handleComposerExport('text')}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 10v3h8v-3"/><path d="M8 2v8m-3-3 3 3 3-3"/></svg>
             Text
@@ -723,6 +764,7 @@ export default function App() {
 
       <TweaksPanel />
       <HelpFAQ />
+      {showScaleBuilder && <ScaleBuilder />}
       <MobileNav />
 
       {/* Toast notification */}

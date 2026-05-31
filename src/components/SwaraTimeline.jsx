@@ -403,6 +403,9 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
 }
 
 function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedNoteIdx, setSelectedNoteIdx, selectedRange, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter }) {
+  const shiftBeats = useStore((s) => s.shiftBeats);
+  const [drag, setDrag] = useState(null); // { startX, deltaBeats }
+
   const beatsPerCycle = tala === 'Custom'
     ? customTalaGroups.reduce((a, b) => a + b, 0)
     : getTalaBeats(tala);
@@ -418,9 +421,30 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
   }
 
   const maxBeat = Math.max(0, ...swaras.map(s => s.beat ?? 0));
+  const firstBeat = Math.min(...swaras.map(s => s.beat ?? 0));
   const totalCycles = Math.max(1, Math.ceil((maxBeat + 1) / beatsPerCycle));
 
   const cellW = Math.max(44, Math.floor((containerW - 40) / beatsPerCycle));
+
+  // Drag the whole sequence left/right to set where it begins in the cycle
+  // (sama). Each cellW of horizontal movement equals one beat.
+  const onSamaPointerDown = (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag({ startX: e.clientX, deltaBeats: 0 });
+  };
+  const onSamaPointerMove = (e) => {
+    if (!drag) return;
+    const raw = Math.round((e.clientX - drag.startX) / cellW);
+    const deltaBeats = Math.max(-firstBeat, raw);
+    if (deltaBeats !== drag.deltaBeats) setDrag({ ...drag, deltaBeats });
+  };
+  const onSamaPointerUp = () => {
+    if (!drag) return;
+    if (drag.deltaBeats) shiftBeats(drag.deltaBeats);
+    setDrag(null);
+  };
+  const previewFirstBeat = firstBeat + (drag?.deltaBeats || 0);
   const cellH = 52;
   const headerH = 24;
   const rowGap = 4;
@@ -434,6 +458,29 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
 
   return (
     <div style={{ padding: 12, overflowX: 'auto', userSelect: 'none' }}>
+      <div className="sama-drag-bar">
+        <button
+          className={`sama-drag-handle${drag ? ' dragging' : ''}`}
+          onPointerDown={onSamaPointerDown}
+          onPointerMove={onSamaPointerMove}
+          onPointerUp={onSamaPointerUp}
+          onPointerCancel={onSamaPointerUp}
+          title="Drag left/right to move where the notes start in the tala cycle"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 5L1 7l2 2M11 5l2 2-2 2M1 7h12" />
+          </svg>
+          Drag to set Sama
+        </button>
+        <span className="sama-drag-readout">
+          starts at beat {(previewFirstBeat % beatsPerCycle) + 1}
+          {drag && drag.deltaBeats !== 0 && (
+            <span className="sama-drag-delta">
+              {' '}({drag.deltaBeats > 0 ? `+${drag.deltaBeats}` : drag.deltaBeats})
+            </span>
+          )}
+        </span>
+      </div>
       <div style={{ display: 'flex', marginBottom: 4, paddingLeft: 32 }}>
         {Array.from({ length: beatsPerCycle }).map((_, bi) => {
           const isSam = bi === 0;

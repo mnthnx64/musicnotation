@@ -7,6 +7,8 @@ export default function ConfigStrip() {
   const shrutiAutoDetected = useStore((s) => s.shrutiAutoDetected);
   const raga = useStore((s) => s.raga);
   const setRaga = useStore((s) => s.setRaga);
+  const customScales = useStore((s) => s.customScales);
+  const toggleScaleBuilder = useStore((s) => s.toggleScaleBuilder);
   const tala = useStore((s) => s.tala);
   const setTala = useStore((s) => s.setTala);
   const customTalaGroups = useStore((s) => s.customTalaGroups);
@@ -52,10 +54,26 @@ export default function ConfigStrip() {
           value={raga}
           onChange={(e) => setRaga(e.target.value)}
         >
-          {RAGAS.map((r) => <option key={r}>{r}</option>)}
+          {RAGAS.map((r) => <option key={r} value={r}>{r}</option>)}
+          {customScales.length > 0 && (
+            <optgroup label="Custom scales">
+              {customScales.map((sc) => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
+            </optgroup>
+          )}
         </select>
         <span className="config-select-arrow">{'\u25BE'}</span>
       </div>
+      <button
+        className="config-chip"
+        onClick={toggleScaleBuilder}
+        title="Create a custom scale / limit to specific notes"
+        style={{ fontSize: 11 }}
+      >
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M6 2.5v7M2.5 6h7" />
+        </svg>
+        New scale
+      </button>
 
       <div className="config-divider" />
 

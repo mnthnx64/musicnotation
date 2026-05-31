@@ -880,7 +880,14 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
   color: var(--text); line-height: 1.1; white-space: nowrap;
 }
 .speed-2 .swara-text { font-size: 12px; }
+.speed-3 .swara-text { font-size: 11px; }
 .speed-4 .swara-text { font-size: 10px; }
+
+.composer-triplet-mark {
+  position: absolute; top: 1px; right: 3px;
+  font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;
+  line-height: 1; color: var(--accent-dim); pointer-events: none;
+}
 
 .octave-dot {
   font-size: 12px; line-height: 0.6; color: var(--accent);
@@ -941,12 +948,90 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
   padding: 6px 10px; font-size: 12px; font-weight: 500; min-width: 32px; min-height: 36px;
 }
 .palette-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+.palette-btn.swara.anya {
+  border-style: dashed; border-color: var(--yellow); color: var(--yellow);
+}
+.palette-btn.anya-toggle {
+  font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.palette-btn.anya-toggle.active {
+  background: var(--yellow); border-color: var(--yellow); color: var(--bg);
+}
 
 .palette-label {
   font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--text-dim); margin-right: 2px;
 }
 .palette-divider { width: 1px; height: 24px; background: var(--border-dim); margin: 0 4px; }
+
+/* ── SAMA DRAG BAR (beat-aligned view) ── */
+.sama-drag-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding-left: 32px; flex-wrap: wrap;
+}
+.sama-drag-handle {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: 8px; border: 1px dashed var(--accent-dim); background: var(--bg-raised);
+  color: var(--accent); font-size: 12px; font-weight: 600; cursor: grab;
+  font-family: 'DM Sans', sans-serif; touch-action: none; user-select: none;
+}
+.sama-drag-handle.dragging { cursor: grabbing; background: var(--accent-glow); border-style: solid; }
+.sama-drag-handle svg { width: 14px; height: 14px; }
+.sama-drag-readout { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.sama-drag-delta { color: var(--accent); font-weight: 600; }
+
+/* ── SCALE BUILDER ── */
+.scale-builder-panel { max-width: 520px; }
+.scale-builder-hint {
+  font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 16px;
+}
+.scale-note-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 16px;
+}
+.scale-note-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 8px 4px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-raised);
+  color: var(--text-dim); transition: all 0.12s ease; min-height: 48px;
+}
+.scale-note-cell:hover { border-color: var(--accent-dim); }
+.scale-note-cell.on {
+  background: var(--accent-glow); border-color: var(--accent); color: var(--accent);
+}
+.scale-note-cell.locked { cursor: default; opacity: 0.95; }
+.scale-note-swara { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+.scale-note-western { font-size: 9px; opacity: 0.7; font-family: 'JetBrains Mono', monospace; }
+
+.scale-builder-save { display: flex; gap: 8px; margin-bottom: 6px; }
+.scale-builder-name {
+  flex: 1; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-surface); color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; min-height: 40px;
+}
+.scale-builder-save-btn {
+  padding: 9px 16px; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--bg); font-weight: 600; font-size: 13px;
+  cursor: pointer; min-height: 40px;
+}
+.scale-builder-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.scale-builder-note-count { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+
+.saved-scales-list { display: flex; flex-direction: column; gap: 6px; }
+.saved-scale-row { display: flex; align-items: stretch; gap: 6px; }
+.saved-scale-use {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-raised); cursor: pointer; text-align: left;
+}
+.saved-scale-use:hover { border-color: var(--accent-dim); }
+.saved-scale-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.saved-scale-notes { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.saved-scale-delete {
+  width: 36px; border-radius: 8px; border: 1px solid var(--border-dim);
+  background: transparent; color: var(--text-dim); cursor: pointer; font-size: 16px;
+}
+.saved-scale-delete:hover { color: var(--red); border-color: var(--red); }
 
 /* ── COMPOSER CONTROL BAR ── */
 .composer-bar {
@@ -968,6 +1053,9 @@ button, a, input, select, [tabindex] { touch-action: manipulation; }
 }
 .composer-bar-btn.primary:hover, .composer-bar-btn.primary:active { filter: brightness(1.1); }
 .composer-bar-btn.danger:hover, .composer-bar-btn.danger:active { color: var(--red); border-color: var(--red); }
+.composer-bar-btn.active {
+  background: var(--accent-glow); color: var(--accent); border-color: var(--accent);
+}
 .composer-bar-btn svg { width: 14px; height: 14px; }
 
 /* ── GRAIN OVERLAY ── */

@@ -1,10 +1,12 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import useStore from '../store';
-import { TALA_STRUCTURE, getTalaBeats, RAGA_SWARAS, resolveShortcut } from '../data/constants';
+import { TALA_STRUCTURE, getTalaBeats, getRagaSwaras, resolveShortcut } from '../data/constants';
 
 export default function ComposerGrid() {
   const tala = useStore((s) => s.tala);
   const raga = useStore((s) => s.raga);
+  const customScales = useStore((s) => s.customScales);
+  const anyaSwaraMode = useStore((s) => s.anyaSwaraMode);
   const avartanams = useStore((s) => s.avartanams);
   const selectedCell = useStore((s) => s.selectedCell);
   const composerSpeed = useStore((s) => s.composerSpeed);
@@ -12,9 +14,9 @@ export default function ComposerGrid() {
   const composerPlayPos = useStore((s) => s.composerPlayPos);
   const customTalaGroups = useStore((s) => s.customTalaGroups);
   const setSelectedCell = useStore((s) => s.setSelectedCell);
-  const setCellSwara = useStore((s) => s.setCellSwara);
   const setCellOctave = useStore((s) => s.setCellOctave);
   const setCellSpeed = useStore((s) => s.setCellSpeed);
+  const inputSwaraAtSelection = useStore((s) => s.inputSwaraAtSelection);
   const clearCell = useStore((s) => s.clearCell);
   const addAvartanam = useStore((s) => s.addAvartanam);
   const removeAvartanam = useStore((s) => s.removeAvartanam);
@@ -22,6 +24,8 @@ export default function ComposerGrid() {
   const containerRef = useRef(null);
   const [warning, setWarning] = useState(null);
   const warningTimer = useRef(null);
+
+  const ragaSwaras = getRagaSwaras(raga, customScales);
 
   const showWarning = useCallback((msg) => {
     setWarning(msg);
@@ -79,8 +83,7 @@ export default function ComposerGrid() {
     }
     else if (key === ',' || key === ' ') {
       e.preventDefault();
-      setCellSwara(row, col, sub, ',', 0);
-      moveSelection(0, 1);
+      inputSwaraAtSelection(',', 0);
     }
     else if (key === '.') {
       e.preventDefault();
@@ -90,34 +93,36 @@ export default function ComposerGrid() {
         setCellOctave(row, col, sub, nextOct);
       }
     }
-    else if (key >= '1' && key <= '3') {
+    else if (key >= '1' && key <= '4') {
       e.preventDefault();
-      const speeds = [1, 2, 4];
-      const spd = speeds[parseInt(key) - 1];
+      const spd = parseInt(key);
       setCellSpeed(row, col, spd);
       useStore.setState({ composerSpeed: spd });
     }
     else if ('srgmpdnSRGMPDN'.includes(key)) {
       e.preventDefault();
-      const swara = resolveShortcut(key.toLowerCase(), raga);
+      const lower = key.toLowerCase();
+      // Resolve to the raga's variant first; in anya mode fall back to the full
+      // swara set so notes the raga lacks can still be entered.
+      let swara = resolveShortcut(lower, raga, customScales);
+      if (!swara && (raga === 'Custom' || anyaSwaraMode)) {
+        swara = resolveShortcut(lower, 'Custom');
+      }
       if (swara) {
-        if (raga !== 'Custom' && !ragaSwaras.includes(swara) && swara !== 'Sa' && swara !== 'Pa') {
-          showWarning(`${swara} is not in ${raga} \u2014 anya swara?`);
+        const inRaga = raga === 'Custom' || swara === 'Sa' || swara === 'Pa' || ragaSwaras.includes(swara);
+        if (!inRaga && !anyaSwaraMode) {
+          showWarning(`${swara} is not in ${raga} \u2014 enable Anya swara to add it`);
+          return;
         }
-        const speed = composerSpeed;
-        if (speed > 1) setCellSpeed(row, col, speed);
-        setCellSwara(row, col, sub, swara, 0);
-        const cell = avartanams[row]?.[col];
-        const maxSub = speed - 1;
-        if (sub < maxSub) {
-          setSelectedCell({ row, col, sub: sub + 1 });
-        } else {
-          moveSelection(0, 1);
+        if (!inRaga) {
+          showWarning(`${swara} added as anya swara (outside ${raga})`);
         }
+        inputSwaraAtSelection(swara, 0);
       }
     }
-  }, [selectedCell, raga, composerSpeed, avartanams, moveSelection,
-      setCellSwara, setCellOctave, setCellSpeed, clearCell, setSelectedCell]);
+  }, [selectedCell, raga, composerSpeed, avartanams, anyaSwaraMode, ragaSwaras,
+      moveSelection, inputSwaraAtSelection, setCellOctave, setCellSpeed,
+      clearCell, setSelectedCell, showWarning]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -125,7 +130,6 @@ export default function ComposerGrid() {
     el.focus();
   }, []);
 
-  const ragaSwaras = RAGA_SWARAS[raga] || RAGA_SWARAS.Custom;
   const composerTitle = useStore((s) => s.composerTitle);
   const setComposerTitle = useStore((s) => s.setComposerTitle);
 
@@ -215,6 +219,7 @@ export default function ComposerGrid() {
                     </div>
                     {speed >= 2 && <div className="speed-line single" />}
                     {speed >= 4 && <div className="speed-line double" />}
+                    {speed === 3 && <div className="composer-triplet-mark">3</div>}
                   </td>
                 );
               })}

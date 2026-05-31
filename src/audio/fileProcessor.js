@@ -21,6 +21,7 @@ export async function processAudioFile(file, opts = {}) {
     raga = 'Custom',
     minStableFrames = 3,
     pitchEngine: engineId = 'yin',
+    allowedSemitones: allowedSemitonesOpt = null,
     onProgress,
   } = opts;
 
@@ -119,8 +120,9 @@ export async function processAudioFile(file, opts = {}) {
   onProgress?.({ stage: 'mapping swaras', progress: 0.8 });
   await yieldToMain();
 
-  // Map each pitch frame to a swara (with optional raga snapping)
-  const allowedSemitones = RAGA_SEMITONES[raga] || RAGA_SEMITONES.Custom;
+  // Map each pitch frame to a swara (with optional raga snapping). A custom
+  // scale's semitone set can be passed in via allowedSemitones.
+  const allowedSemitones = allowedSemitonesOpt || RAGA_SEMITONES[raga] || RAGA_SEMITONES.Custom;
   const rawSwaras = [];
 
   for (const frame of pitchFrames) {

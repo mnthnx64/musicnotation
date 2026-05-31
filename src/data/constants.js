@@ -52,9 +52,34 @@ export const SWARA_FREQ_RATIOS = {
   'Ni\u2082': 9/5, 'Ni\u2083': 15/8,
 };
 
+// Semitone (0-11) -> default Carnatic swara name. Used to derive swara
+// labels for custom scales built from raw semitone sets.
+export const SWARA_NAMES_BY_SEMITONE = [
+  'Sa', 'Ri\u2081', 'Ri\u2082', 'Ga\u2082', 'Ga\u2083',
+  'Ma\u2081', 'Ma\u2082', 'Pa', 'Da\u2081', 'Da\u2082', 'Ni\u2082', 'Ni\u2083',
+];
+
+// Resolve the allowed swara list for a raga, falling back to any user-defined
+// custom scale of the same name.
+export function getRagaSwaras(ragaName, customScales = []) {
+  if (RAGA_SWARAS[ragaName]) return RAGA_SWARAS[ragaName];
+  const custom = customScales.find(s => s.name === ragaName);
+  if (custom) return custom.swaras;
+  return RAGA_SWARAS.Custom;
+}
+
+// Resolve the allowed semitone set for a raga (for snapping), falling back to
+// any user-defined custom scale of the same name.
+export function getRagaSemitones(ragaName, customScales = []) {
+  if (RAGA_SEMITONES[ragaName]) return RAGA_SEMITONES[ragaName];
+  const custom = customScales.find(s => s.name === ragaName);
+  if (custom) return custom.semitones;
+  return RAGA_SEMITONES.Custom;
+}
+
 // Resolve a shortcut letter to the correct swara variant for a raga
-export function resolveShortcut(key, ragaName) {
-  const swaras = RAGA_SWARAS[ragaName] || RAGA_SWARAS.Custom;
+export function resolveShortcut(key, ragaName, customScales = []) {
+  const swaras = getRagaSwaras(ragaName, customScales);
   const prefix = SWARA_SHORTCUTS[key];
   if (!prefix) return null;
   if (prefix === 'Sa' || prefix === 'Pa') return prefix;
