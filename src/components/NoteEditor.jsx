@@ -1,10 +1,11 @@
 import useStore from '../store';
-import { RAGA_SWARAS } from '../data/constants';
+import { RAGA_SWARAS, formatSwara } from '../data/constants';
 
 export default function NoteEditor() {
   const selectedNoteIdx = useStore((s) => s.selectedNoteIdx);
   const swaras = useStore((s) => s.swaras);
   const raga = useStore((s) => s.raga);
+  const swaraNotation = useStore((s) => s.swaraNotation);
   const updateSwara = useStore((s) => s.updateSwara);
   const deleteSwara = useStore((s) => s.deleteSwara);
   const insertSwara = useStore((s) => s.insertSwara);
@@ -68,7 +69,7 @@ export default function NoteEditor() {
             <button key={s}
               className={`ne-swara-btn${note.swara === s ? ' active' : ''}`}
               onClick={() => handleSwaraChange(s)}
-            >{s}</button>
+            >{formatSwara(s, swaraNotation)}</button>
           ))}
         </div>
       </div>

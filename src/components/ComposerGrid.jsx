@@ -1,12 +1,13 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import useStore from '../store';
-import { TALA_STRUCTURE, getTalaBeats, getRagaSwaras, resolveShortcut } from '../data/constants';
+import { TALA_STRUCTURE, getTalaBeats, getRagaSwaras, resolveShortcut, formatSwara } from '../data/constants';
 
 export default function ComposerGrid() {
   const tala = useStore((s) => s.tala);
   const raga = useStore((s) => s.raga);
   const customScales = useStore((s) => s.customScales);
   const anyaSwaraMode = useStore((s) => s.anyaSwaraMode);
+  const swaraNotation = useStore((s) => s.swaraNotation);
   const avartanams = useStore((s) => s.avartanams);
   const selectedCell = useStore((s) => s.selectedCell);
   const composerSpeed = useStore((s) => s.composerSpeed);
@@ -210,7 +211,7 @@ export default function ComposerGrid() {
                           >
                             {sub.octave === 1 && <span className="octave-dot upper">{'\u00B7'}</span>}
                             <span className="swara-text">
-                              {isEmpty ? '\u00A0' : isRest ? ',' : sub.swara}
+                              {isEmpty ? '\u00A0' : isRest ? ',' : formatSwara(sub.swara, swaraNotation)}
                             </span>
                             {sub.octave === -1 && <span className="octave-dot lower">{'\u00B7'}</span>}
                           </span>

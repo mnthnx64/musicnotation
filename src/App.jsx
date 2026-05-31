@@ -3,7 +3,7 @@ import useStore from './store';
 import { processAudioFile } from './audio/fileProcessor';
 import { calculateRMS, createPitchSmoother, PITCH_CONFIG } from './audio/pitchDetection';
 import { freqToSwara } from './audio/swaraMapping';
-import { NOTE_FREQUENCIES, TALA_STRUCTURE, getTalaBeats, getRagaSemitones } from './data/constants';
+import { NOTE_FREQUENCIES, TALA_STRUCTURE, getTalaBeats, getRagaSemitones, formatSwara } from './data/constants';
 import { startPitchWorklet } from './audio/pitchWorklet';
 import { getEngine } from './audio/pitchEngines';
 import { playComposition, stopPlayback } from './audio/composerPlayback';
@@ -199,12 +199,13 @@ export default function App() {
     const currentRaga = useStore.getState().raga;
     const currentTala = useStore.getState().tala;
     const currentBpm = useStore.getState().bpm;
+    const currentNotation = useStore.getState().swaraNotation;
     const baseName = (fileName || 'swaras').replace(/\.[^.]+$/, '');
 
     if (format === 'pdf') {
       const doc = exportTranscriptionPDF(swaras, {
         shruti: currentShruti, raga: currentRaga, tala: currentTala,
-        bpm: currentBpm, title: fileName, detectedTonic,
+        bpm: currentBpm, title: fileName, detectedTonic, notation: currentNotation,
       });
       downloadPDF(doc, `${baseName}.pdf`);
       return;
@@ -241,10 +242,10 @@ export default function App() {
     text += `Swaras detected: ${swaras.length}\n`;
     text += `${'\u2500'.repeat(40)}\n\n`;
     text += `Swara Sequence:\n`;
-    text += swaras.map(s => s.swara).join(' ') + '\n\n';
+    text += swaras.map(s => formatSwara(s.swara, currentNotation)).join(' ') + '\n\n';
     text += `Time\tSwara\tDuration\tConfidence\n`;
     for (const s of swaras) {
-      text += `${s.time.toFixed(2)}s\t${s.swara}\t${s.duration.toFixed(3)}s\t${Math.round(s.confidence * 100)}%\n`;
+      text += `${s.time.toFixed(2)}s\t${formatSwara(s.swara, currentNotation)}\t${s.duration.toFixed(3)}s\t${Math.round(s.confidence * 100)}%\n`;
     }
 
     const blob = new Blob([text], { type: 'text/plain' });
@@ -290,15 +291,16 @@ export default function App() {
   // Composer export
   const handleComposerExport = useCallback((format) => {
     const name = (composerTitle || 'composition').replace(/[^a-zA-Z0-9]/g, '_');
+    const notation = useStore.getState().swaraNotation;
     if (format === 'print') {
       printComposition();
     } else if (format === 'pdf') {
-      const doc = exportComposerPDF(avartanams, { raga, tala, shruti, title: composerTitle, bpm });
+      const doc = exportComposerPDF(avartanams, { raga, tala, shruti, title: composerTitle, bpm, notation });
       downloadPDF(doc, `${name}.pdf`);
     } else if (format === 'png') {
       captureNotationArea('.composer-grid-wrap table', `${name}.png`);
     } else {
-      const text = exportAsText(avartanams, { raga, tala, shruti, title: composerTitle, bpm, customTalaGroups });
+      const text = exportAsText(avartanams, { raga, tala, shruti, title: composerTitle, bpm, customTalaGroups, notation });
       downloadText(text, `${name}.txt`);
     }
   }, [avartanams, raga, tala, shruti, composerTitle, bpm, customTalaGroups]);

@@ -29,6 +29,18 @@ const useStore = create((set, get) => ({
   mode: 'carnatic', // 'dual' | 'carnatic' | 'western'
   setMode: (mode) => set({ mode }),
 
+  // Swara name style: 'full' (Sa Ri Ga Ma) or 'short' (S R G M). Display-only.
+  swaraNotation: (typeof localStorage !== 'undefined' && localStorage.getItem('ezswara-swara-notation')) || 'full',
+  setSwaraNotation: (v) => {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('ezswara-swara-notation', v);
+    set({ swaraNotation: v });
+  },
+  toggleSwaraNotation: () => set((s) => {
+    const v = s.swaraNotation === 'full' ? 'short' : 'full';
+    if (typeof localStorage !== 'undefined') localStorage.setItem('ezswara-swara-notation', v);
+    return { swaraNotation: v };
+  }),
+
   // Theme
   theme: 'manuscript', // 'cosmic' | 'manuscript' | 'minimal'
   setTheme: (theme) => set({ theme }),

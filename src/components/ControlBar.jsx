@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import useStore from '../store';
+import { formatSwara } from '../data/constants';
 
 export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
   const inputMode = useStore((s) => s.inputMode);
@@ -14,6 +15,7 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
   const togglePause = useStore((s) => s.togglePause);
   const liveSwara = useStore((s) => s.liveSwara);
   const confidence = useStore((s) => s.confidence);
+  const swaraNotation = useStore((s) => s.swaraNotation);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [showMoreFormats, setShowMoreFormats] = useState(false);
@@ -117,7 +119,7 @@ export default function ControlBar({ onUploadClick, onPlayPause, onExport }) {
         {active && (
           <div className="live-note-badge">
             <span className="live-note-swara" style={{ color: liveSwara ? confColor : 'var(--text-dim)' }}>
-              {liveSwara || '\u2014'}
+              {liveSwara ? formatSwara(liveSwara, swaraNotation) : '\u2014'}
             </span>
             {liveSwara && (
               <span className="live-note-conf" style={{ color: confColor }}>

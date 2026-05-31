@@ -9,6 +9,8 @@ export default function ConfigStrip() {
   const setRaga = useStore((s) => s.setRaga);
   const customScales = useStore((s) => s.customScales);
   const toggleScaleBuilder = useStore((s) => s.toggleScaleBuilder);
+  const swaraNotation = useStore((s) => s.swaraNotation);
+  const toggleSwaraNotation = useStore((s) => s.toggleSwaraNotation);
   const tala = useStore((s) => s.tala);
   const setTala = useStore((s) => s.setTala);
   const customTalaGroups = useStore((s) => s.customTalaGroups);
@@ -74,6 +76,26 @@ export default function ConfigStrip() {
         </svg>
         New scale
       </button>
+
+      <div className="config-divider" />
+
+      <span className="config-label">Notation<span className="config-label-sub">style</span></span>
+      <div className="notation-toggle" role="group" aria-label="Swara notation style">
+        <button
+          className={`notation-toggle-btn${swaraNotation === 'full' ? ' active' : ''}`}
+          onClick={() => swaraNotation !== 'full' && toggleSwaraNotation()}
+          title="Full swara names (Sa Ri Ga Ma)"
+        >
+          Sa Ri
+        </button>
+        <button
+          className={`notation-toggle-btn${swaraNotation === 'short' ? ' active' : ''}`}
+          onClick={() => swaraNotation !== 'short' && toggleSwaraNotation()}
+          title="Short swara names (S R G M)"
+        >
+          S R
+        </button>
+      </div>
 
       <div className="config-divider" />
 

@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
+import { formatSwara } from '../data/constants';
 
-export function exportTranscriptionPDF(swaras, { shruti, raga, tala, bpm, title, detectedTonic } = {}) {
+export function exportTranscriptionPDF(swaras, { shruti, raga, tala, bpm, title, detectedTonic, notation = 'full' } = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -32,7 +33,7 @@ export function exportTranscriptionPDF(swaras, { shruti, raga, tala, bpm, title,
 
   doc.setFont('courier', 'normal');
   doc.setFontSize(8);
-  const sequence = swaras.map(s => s.swara).join('  ');
+  const sequence = swaras.map(s => formatSwara(s.swara, notation)).join('  ');
   const lines = doc.splitTextToSize(sequence, W - 30);
   for (const line of lines) {
     if (y > 275) { doc.addPage(); y = 15; }
@@ -52,7 +53,7 @@ export function exportTranscriptionPDF(swaras, { shruti, raga, tala, bpm, title,
   doc.setFont('courier', 'normal');
   for (const s of swaras) {
     if (y > 280) { doc.addPage(); y = 15; }
-    const row = `${s.time.toFixed(2).padStart(7)}s   ${s.swara.padEnd(10)}  ${s.duration.toFixed(3).padStart(6)}s     ${Math.round((s.confidence || 0) * 100)}%`;
+    const row = `${s.time.toFixed(2).padStart(7)}s   ${formatSwara(s.swara, notation).padEnd(10)}  ${s.duration.toFixed(3).padStart(6)}s     ${Math.round((s.confidence || 0) * 100)}%`;
     doc.text(row, 15, y);
     y += 3.5;
   }
@@ -60,7 +61,7 @@ export function exportTranscriptionPDF(swaras, { shruti, raga, tala, bpm, title,
   return doc;
 }
 
-export function exportComposerPDF(avartanams, { shruti, raga, tala, bpm, title } = {}) {
+export function exportComposerPDF(avartanams, { shruti, raga, tala, bpm, title, notation = 'full' } = {}) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -123,7 +124,7 @@ export function exportComposerPDF(avartanams, { shruti, raga, tala, bpm, title }
       const txt = cell.map(sub => {
         if (!sub.swara || sub.swara === '') return '-';
         if (sub.swara === ',') return ',';
-        let t = sub.swara;
+        let t = formatSwara(sub.swara, notation);
         if (sub.octave === 1) t = '\u00B7' + t;
         if (sub.octave === -1) t += '\u0323';
         return t;

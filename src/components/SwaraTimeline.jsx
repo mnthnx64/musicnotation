@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import useStore from '../store';
 import StaffNotation from './StaffNotation';
-import { TALA_STRUCTURE, getTalaBeats } from '../data/constants';
+import { TALA_STRUCTURE, getTalaBeats, formatSwara } from '../data/constants';
 
 const CLEF_W = 16;
 const BASE_W = 60;
@@ -17,6 +17,7 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
   const [containerW, setContainerW] = useState(800);
   const mode = useStore((s) => s.mode);
   const shruti = useStore((s) => s.shruti);
+  const swaraNotation = useStore((s) => s.swaraNotation);
   const tala = useStore((s) => s.tala);
   const customTalaGroups = useStore((s) => s.customTalaGroups);
   const selectedNoteIdx = useStore((s) => s.selectedNoteIdx);
@@ -298,15 +299,15 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
       <div className="merge-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="merge-dialog-title">Merge {selectedRange.end - selectedRange.start + 1} notes into one</div>
         <div className="merge-dialog-subtitle">
-          Merging: {swaras.slice(selectedRange.start, selectedRange.end + 1).map(s => s.swara).join(' ')}
+          Merging: {swaras.slice(selectedRange.start, selectedRange.end + 1).map(s => formatSwara(s.swara, swaraNotation)).join(' ')}
         </div>
         <div className="merge-dialog-options">
           <button className="merge-option first" onClick={() => confirmMerge(null)}>
-            Keep first: <strong>{swaras[selectedRange.start].swara}</strong>
+            Keep first: <strong>{formatSwara(swaras[selectedRange.start].swara, swaraNotation)}</strong>
           </button>
           {SWARA_OPTIONS.map(sw => (
             <button key={sw} className="merge-option" onClick={() => confirmMerge(sw)}>
-              {sw}
+              {formatSwara(sw, swaraNotation)}
             </button>
           ))}
         </div>
@@ -354,6 +355,7 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
           tala={tala}
           customTalaGroups={customTalaGroups}
           containerW={containerW}
+          swaraNotation={swaraNotation}
           selectedNoteIdx={selectedNoteIdx}
           setSelectedNoteIdx={setSelectedNoteIdx}
           selectedRange={selectedRange}
@@ -384,7 +386,7 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
         <StaffNotation swaras={swaras} playbackTime={playbackTime} isPlaying={isPlaying} shruti={shruti} />
         <div style={{ borderTop: '1px solid var(--border-dim)', marginTop: 8, paddingTop: 8 }}>
           <svg width={containerW} height={svgH} style={{ display: 'block', userSelect: 'none' }}>
-            {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop))}
+            {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop, swaraNotation))}
           </svg>
         </div>
       </div>
@@ -396,13 +398,13 @@ export default function SwaraTimeline({ swaras, playbackTime, isPlaying }) {
       {selectionToolbar}
       {mergeDialog}
       <svg width={containerW} height={svgH} style={{ display: 'block', userSelect: 'none' }}>
-        {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop))}
+        {Array.from({ length: displayRows }).map((_, ri) => renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop, swaraNotation))}
       </svg>
     </div>
   );
 }
 
-function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedNoteIdx, setSelectedNoteIdx, selectedRange, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter }) {
+function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, swaraNotation = 'full', selectedNoteIdx, setSelectedNoteIdx, selectedRange, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter }) {
   const shiftBeats = useStore((s) => s.shiftBeats);
   const [drag, setDrag] = useState(null); // { startX, deltaBeats }
 
@@ -551,7 +553,7 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
                         color: notes[0].confidence < 0.75 ? 'var(--text-dim)' : 'var(--text)',
                         fontStyle: notes[0].confidence < 0.6 ? 'italic' : 'normal',
                       }}>
-                        {notes[0].swara}
+                        {formatSwara(notes[0].swara, swaraNotation)}
                       </span>
                       {notes[0].octaveOffset < 0 && <span style={{ fontSize: 8, color: 'var(--accent-dim)', lineHeight: 1 }}>&middot;</span>}
                     </>
@@ -562,7 +564,7 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
                           fontFamily: 'JetBrains Mono, monospace',
                           fontSize: 11, fontWeight: 600, color: 'var(--text)',
                         }}>
-                          {n.swara}
+                          {formatSwara(n.swara, swaraNotation)}
                         </span>
                       ))}
                     </div>
@@ -577,7 +579,7 @@ function BeatAlignedView({ swaras, tala, customTalaGroups, containerW, selectedN
   );
 }
 
-function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop) {
+function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteIdx, isInSelectedRange, isInDragRange, handleNoteMouseDown, handleNoteMouseEnter, getRowTop, swaraNotation = 'full') {
   const rTop = getRowTop(ri);
   const rowNotes = rows[ri] || [];
 
@@ -655,7 +657,7 @@ function renderSargamRow(ri, rows, containerW, maxDur, activeIdx, selectedNoteId
               fontStyle={lowC ? 'italic' : 'normal'}
               opacity={opacity}
             >
-              {s.swara}
+              {formatSwara(s.swara, swaraNotation)}
             </text>
             {lowC && (
               <circle cx={xL + w - 6} cy={midY - 14} r={2.5}

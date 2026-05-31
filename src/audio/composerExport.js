@@ -1,6 +1,6 @@
-import { TALA_STRUCTURE, getTalaBeats, TALA_SECTION_NAMES } from '../data/constants';
+import { TALA_STRUCTURE, getTalaBeats, TALA_SECTION_NAMES, formatSwara } from '../data/constants';
 
-export function exportAsText(avartanams, { raga, tala, shruti, title, bpm, customTalaGroups } = {}) {
+export function exportAsText(avartanams, { raga, tala, shruti, title, bpm, customTalaGroups, notation = 'full' } = {}) {
   const activeTala = tala === 'Alapana (Unmetered)' ? 'Adi (8)' : tala;
   const beats = activeTala === 'Custom' && customTalaGroups
     ? customTalaGroups.reduce((a, b) => a + b, 0)
@@ -41,7 +41,7 @@ export function exportAsText(avartanams, { raga, tala, shruti, title, bpm, custo
       const txt = cell.map(s => {
         if (!s.swara || s.swara === '') return '-';
         if (s.swara === ',') return ',';
-        let t = s.swara;
+        let t = formatSwara(s.swara, notation);
         if (s.octave === 1) t += '\u0307';
         if (s.octave === -1) t += '\u0323';
         return t;

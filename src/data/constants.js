@@ -77,6 +77,19 @@ export function getRagaSemitones(ragaName, customScales = []) {
   return RAGA_SEMITONES.Custom;
 }
 
+// Convert a full swara name (e.g. "Ri\u2081") to its short form (e.g. "R\u2081"):
+// first letter + any trailing subscript digits. Rests/blanks pass through.
+export function toShortSwara(name) {
+  if (!name || name === ',') return name;
+  const sub = name.match(/[\u2080-\u2089]+$/);
+  return name[0] + (sub ? sub[0] : '');
+}
+
+// Format a swara name for display per the active notation style.
+export function formatSwara(name, notation = 'full') {
+  return notation === 'short' ? toShortSwara(name) : name;
+}
+
 // Resolve a shortcut letter to the correct swara variant for a raga
 export function resolveShortcut(key, ragaName, customScales = []) {
   const swaras = getRagaSwaras(ragaName, customScales);

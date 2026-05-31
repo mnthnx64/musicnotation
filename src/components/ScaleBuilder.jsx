@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import useStore from '../store';
-import { SHRUTI_NOTES, SWARA_NAMES_BY_SEMITONE } from '../data/constants';
+import { SHRUTI_NOTES, SWARA_NAMES_BY_SEMITONE, formatSwara } from '../data/constants';
 
 export default function ScaleBuilder() {
   const toggleScaleBuilder = useStore((s) => s.toggleScaleBuilder);
   const shruti = useStore((s) => s.shruti);
   const customScales = useStore((s) => s.customScales);
+  const swaraNotation = useStore((s) => s.swaraNotation);
   const addCustomScale = useStore((s) => s.addCustomScale);
   const deleteCustomScale = useStore((s) => s.deleteCustomScale);
   const setRaga = useStore((s) => s.setRaga);
@@ -62,7 +63,7 @@ export default function ScaleBuilder() {
                   onClick={() => toggle(st)}
                   title={isSa ? 'Sa is always included' : undefined}
                 >
-                  <span className="scale-note-swara">{SWARA_NAMES_BY_SEMITONE[st]}</span>
+                  <span className="scale-note-swara">{formatSwara(SWARA_NAMES_BY_SEMITONE[st], swaraNotation)}</span>
                   <span className="scale-note-western">{westernFor(st)}</span>
                 </button>
               );
@@ -99,7 +100,7 @@ export default function ScaleBuilder() {
                       title="Use this scale"
                     >
                       <span className="saved-scale-name">{sc.name}</span>
-                      <span className="saved-scale-notes">{sc.swaras.join(' ')}</span>
+                      <span className="saved-scale-notes">{sc.swaras.map((sw) => formatSwara(sw, swaraNotation)).join(' ')}</span>
                     </button>
                     <button
                       className="saved-scale-delete"

@@ -1,5 +1,5 @@
 import useStore from '../store';
-import { RAGA_SWARAS, getRagaSwaras } from '../data/constants';
+import { RAGA_SWARAS, getRagaSwaras, formatSwara } from '../data/constants';
 
 const ALL_SWARAS = RAGA_SWARAS.Custom;
 
@@ -7,6 +7,7 @@ export default function SwaraPalette() {
   const raga = useStore((s) => s.raga);
   const customScales = useStore((s) => s.customScales);
   const anyaSwaraMode = useStore((s) => s.anyaSwaraMode);
+  const swaraNotation = useStore((s) => s.swaraNotation);
   const toggleAnyaSwaraMode = useStore((s) => s.toggleAnyaSwaraMode);
   const selectedCell = useStore((s) => s.selectedCell);
   const composerSpeed = useStore((s) => s.composerSpeed);
@@ -42,7 +43,7 @@ export default function SwaraPalette() {
               onClick={() => insertSwara(s)}
               title={outOfRaga ? `Anya swara (outside ${raga})` : undefined}
             >
-              {s}
+              {formatSwara(s, swaraNotation)}
             </button>
           );
         })}
